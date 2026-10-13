@@ -10,6 +10,7 @@ import { Badge, Button, Card, ErrorNote } from "../../components/ui";
 import { GlassTile, RoundAction, TileButton } from "../../components/GlassTile";
 import { modules, smartCare } from "../../app/modules";
 import { Modal } from "../../components/ReviewDialog";
+import smartCareHero from "../../assets/icons/cuidado-inteligente-hd.webp";
 import { useHome } from "../scanner/ScannerPage";
 import { ConfidenceBadge, kindLabel } from "../applications/shared";
 import { formatAge, formatBytes, formatCount, shortPath } from "../../lib/format";
@@ -295,7 +296,7 @@ export function SmartCarePage() {
 
         {(job.status === "idle" || job.status === "cancelled" || (job.status === "done" && !r)) && (
           <div className="flex min-h-[calc(100vh-190px)] flex-col items-center justify-center pb-10">
-            <img src={smartCare.icon} alt="" draggable={false} className="size-[min(320px,38vh)] object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
+            <img src={smartCareHero} alt="" draggable={false} className="size-[min(320px,38vh)] object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
             <div className="mt-8">
               <RoundAction onClick={() => start(MODULE, "start_smart_care", {})}>Analisar</RoundAction>
             </div>
@@ -305,7 +306,7 @@ export function SmartCarePage() {
 
         {running && (
           <div className="flex flex-col items-center pt-2 pb-8">
-            <img src={smartCare.icon} alt="" draggable={false} className="size-[150px] animate-pulse object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
+            <img src={smartCareHero} alt="" draggable={false} className="size-[150px] animate-pulse object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
             <Card className="mt-8 w-full max-w-[640px] p-5">
               <div className="grid grid-cols-3 gap-2">
                 {stageList.map((s, i) => (
