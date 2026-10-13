@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, AppWindow, Check, ChevronDown, ChevronRight, Copy, Download, FileSearch, Loader2, PackageX, Sparkles, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, AppWindow, Boxes, Check, ChevronDown, ChevronRight, Copy, Download, FileSearch, Loader2, PackageX, Sparkles, Trash2 } from "lucide-react";
 import { api, errorMessage } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { useNav } from "../../stores/nav";
@@ -11,6 +11,7 @@ import { Modal } from "../../components/ReviewDialog";
 import { useHome } from "../scanner/ScannerPage";
 import { ConfidenceBadge, kindLabel } from "../applications/shared";
 import { formatAge, formatBytes, formatCount, shortPath } from "../../lib/format";
+import { artifactKindLabel, noteLabel, unsyncedReasons } from "../dev/labels";
 import type { CarePlan, OperationOutcome, SmartCareReport } from "../../types";
 
 const MODULE = "smartCare";
@@ -23,6 +24,9 @@ const stages = [
   { id: "apps", label: "Aplicativos" },
   { id: "leftovers", label: "Restos de apps" },
 ];
+// Only runs when the user has added project folders.
+const projectsStage = { id: "projects", label: "Projetos" };
+const repoName = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 
 type Row = { key: string; label: ReactNode; detail?: ReactNode; size: number; badge?: ReactNode; locked?: boolean };
 
@@ -98,7 +102,7 @@ function Section({
 
 const tile = (id: string) => [smartCare, ...modules].find((m) => m.id === id)!;
 
-type Focus = "downloads" | "clutter" | "apps";
+type Focus = "downloads" | "clutter" | "apps" | "dev";
 
 export function SmartCarePage() {
   const home = useHome();
@@ -116,6 +120,8 @@ export function SmartCarePage() {
   const [focus, setFocus] = useState<Focus | null>(null);
   const r = job.result ?? undefined;
   const running = job.status === "running";
+  const { data: devRoots = [] } = useQuery({ queryKey: ["devRoots"], queryFn: api.devRoots });
+  const stageList = devRoots.length ? [...stages, projectsStage] : stages;
 
   // Defaults: old installers, the smart duplicate selection and safe leftovers. Never the Trash,
   // large files or anything ambiguous.
@@ -127,6 +133,8 @@ export function SmartCarePage() {
         ...r.downloads.filter((d) => d.selected).map((d) => `dl:${d.path}`),
         ...r.duplicates.flatMap((g) => g.files.filter((f) => f.selected).map((f) => `dup:${f.path}`)),
         ...r.leftovers.flatMap((g) => g.items.filter((i) => i.selected).map((i) => `lo:${i.path}`)),
+        // Regenerable folders: only the ones nothing speaks against.
+        ...(r.dev?.artifacts ?? []).filter((a) => a.confidence === "safe").map((a) => `art:${a.path}`),
       ]),
     );
   }, [r]);
@@ -156,9 +164,10 @@ export function SmartCarePage() {
       downloads: r.downloads.filter((d) => d.selected).map((d) => `dl:${d.path}`),
       duplicates: r.duplicates.flatMap((g) => g.files.filter((f) => f.selected).map((f) => `dup:${f.path}`)),
       leftovers: r.leftovers.flatMap((g) => g.items.filter((i) => i.selected).map((i) => `lo:${i.path}`)),
+      artifacts: (r.dev?.artifacts ?? []).filter((a) => a.confidence === "safe").map((a) => `art:${a.path}`),
     };
   }, [r]);
-  const prefix = { downloads: "dl:", duplicates: "dup:", leftovers: "lo:" } as const;
+  const prefix = { downloads: "dl:", duplicates: "dup:", leftovers: "lo:", artifacts: "art:" } as const;
   const categoryOn = (c: keyof typeof prefix) => [...selected].some((k) => k.startsWith(prefix[c]));
   const setCategory = (c: keyof typeof prefix, on: boolean) =>
     setSelected((prev) => {
@@ -191,16 +200,26 @@ export function SmartCarePage() {
     const leftovers: Row[] = r.leftovers.flatMap((g) =>
       g.items.map((i) => ({ key: `lo:${i.path}`, label: g.bundleId, detail: kindLabel[i.kind], size: i.size, badge: <ConfidenceBadge confidence={i.confidence} /> })),
     );
-    return { downloads, duplicates, largeOld, leftovers };
+    const artifacts: Row[] = (r.dev?.artifacts ?? []).map((a) => ({
+      key: `art:${a.path}`,
+      label: `${artifactKindLabel[a.kind] ?? a.kind} · ${repoName(a.repo)}`,
+      detail: a.notes.length ? a.notes.map((n) => noteLabel[n]).join(" ") : (a.path.startsWith(`${a.repo}/`) ? a.path.slice(a.repo.length + 1) : shortPath(a.path, home)),
+      size: a.size,
+      badge: <ConfidenceBadge confidence={a.confidence} />,
+      // The server refuses folders with versioned files, so they cannot be chosen here either.
+      locked: a.notes.includes("tracked"),
+    }));
+    return { downloads, duplicates, largeOld, leftovers, artifacts };
   }, [r, selected, home]);
 
-  const all = rows ? [...rows.downloads, ...rows.duplicates, ...rows.largeOld, ...rows.leftovers] : [];
+  const all = rows ? [...rows.downloads, ...rows.duplicates, ...rows.largeOld, ...rows.leftovers, ...rows.artifacts] : [];
   const chosenBytes = all.filter((x) => selected.has(x.key)).reduce((s, x) => s + x.size, 0) + (emptyTrash && r ? r.trash.bytes : 0);
   const chosenCount = all.filter((x) => selected.has(x.key)).length;
   const reclaimable = r
     ? r.downloads.filter((d) => d.selected).reduce((s, d) => s + d.sizeLogical, 0) +
       r.duplicates.reduce((s, g) => s + g.wasted, 0) +
       r.leftovers.reduce((s, g) => s + g.items.filter((i) => i.selected).reduce((a, i) => a + i.size, 0), 0) +
+      (r.dev?.artifacts ?? []).filter((a) => a.confidence === "safe").reduce((s, a) => s + a.size, 0) +
       (r.trash.readable ? r.trash.bytes : 0)
     : 0;
 
@@ -219,6 +238,7 @@ export function SmartCarePage() {
         }))
         .filter((g) => g.remove.length),
       leftovers: (r?.leftovers ?? []).flatMap((g) => g.items.filter((i) => has(`lo:${i.path}`)).map((i) => ({ path: i.path, size: i.size }))),
+      artifacts: (r?.dev?.artifacts ?? []).filter((a) => has(`art:${a.path}`)).map((a) => ({ path: a.path, repo: a.repo, kind: a.kind, size: a.size })),
     };
   };
 
@@ -237,11 +257,13 @@ export function SmartCarePage() {
     }
   };
 
-  const stageIndex = stages.findIndex((s) => s.id === job.stage?.stage);
+  const stageIndex = stageList.findIndex((s) => s.id === job.stage?.stage);
 
   const downloadsBytes = r ? r.downloads.filter((d) => d.selected).reduce((s, d) => s + d.sizeLogical, 0) : 0;
   const duplicatesBytes = r ? r.duplicates.reduce((s, g) => s + g.wasted, 0) : 0;
   const leftoversBytes = r ? r.leftovers.reduce((s, g) => s + g.items.reduce((a, i) => a + i.size, 0), 0) : 0;
+  const artifactsBytes = r ? (r.dev?.artifacts ?? []).filter((a) => a.confidence === "safe").reduce((s, a) => s + a.size, 0) : 0;
+  const unsyncedRepos = (r?.dev?.repos ?? []).filter((x) => unsyncedReasons(x).length > 0);
   const nothing = (text: string) => <span className="text-ink-2">{text}</span>;
 
   return (
@@ -283,7 +305,7 @@ export function SmartCarePage() {
             <img src={smartCare.icon} alt="" draggable={false} className="size-[150px] animate-pulse object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
             <Card className="mt-8 w-full max-w-[640px] p-5">
               <div className="grid grid-cols-3 gap-2">
-                {stages.map((s, i) => (
+                {stageList.map((s, i) => (
                   <div key={s.id} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] ${i === stageIndex ? "bg-accent-soft text-ink" : i < stageIndex ? "text-ink-2" : "text-ink-3"}`}>
                     {i < stageIndex ? <Check className="size-4 text-safe" /> : i === stageIndex ? <Loader2 className="size-4 animate-spin" /> : <span className="size-4" />}
                     {s.label}
@@ -374,12 +396,39 @@ export function SmartCarePage() {
                 value={!r.trash.readable ? nothing("Sem acesso") : r.trash.bytes ? formatBytes(r.trash.bytes) : nothing("Vazia")}
                 caption={r.trash.readable && r.trash.bytes ? (emptyTrash ? <span className="text-review">será apagada de vez</span> : "marque para esvaziar") : undefined}
               />
+
+              {r.dev && (
+                <GlassTile
+                  className="col-span-6"
+                  tint="dev"
+                  icon={tile("dev").icon}
+                  label="Projetos"
+                  checked={categoryOn("artifacts")}
+                  onCheck={rows.artifacts.length ? (v) => setCategory("artifacts", v) : undefined}
+                  value={artifactsBytes ? formatBytes(artifactsBytes) : nothing("Nada a recriar")}
+                  caption={artifactsBytes ? "em node_modules, target e similares: voltam com um comando" : "nas pastas de projetos"}
+                  action={rows.artifacts.length > 0 && <TileButton onClick={() => review("dev")}>Revisar</TileButton>}
+                >
+                  {unsyncedRepos.length > 0 && (
+                    <div className="relative mt-3 max-w-[70%] text-[12.5px] text-ink-2">
+                      <span className="font-semibold text-ink">
+                        {formatCount(unsyncedRepos.length)} {unsyncedRepos.length === 1 ? "repositório com trabalho" : "repositórios com trabalho"} não enviado:
+                      </span>{" "}
+                      {unsyncedRepos.slice(0, 4).map((x) => repoName(x.path)).join(", ")}
+                      {unsyncedRepos.length > 4 ? ` e mais ${unsyncedRepos.length - 4}` : ""}.{" "}
+                      <button className="underline underline-offset-2 hover:text-ink" onClick={() => go("projects")}>
+                        Abrir Projetos
+                      </button>
+                    </div>
+                  )}
+                </GlassTile>
+              )}
             </div>
 
             {focus && (
               <div id="care-review" className="scroll-mt-4 space-y-3 pt-4">
                 <h2 className="text-[15px] font-semibold">
-                  {focus === "downloads" ? "Downloads" : focus === "clutter" ? "Minha bagunça" : "Aplicativos"}
+                  {focus === "downloads" ? "Downloads" : focus === "clutter" ? "Minha bagunça" : focus === "dev" ? "Projetos" : "Aplicativos"}
                 </h2>
                 {focus === "downloads" && (
                   <Section defaultOpen icon={<Download />} title="Downloads" rows={rows.downloads} selected={selected} onToggle={toggle} onAll={(v) => setMany(rows.downloads.map((x) => x.key), v)} note="Instaladores antigos já vêm marcados; o resto fica para você decidir." />
@@ -389,6 +438,18 @@ export function SmartCarePage() {
                     <Section defaultOpen icon={<Copy />} title="Duplicados (acima de 10 MB)" rows={rows.duplicates} selected={selected} onToggle={toggle} note="Uma cópia de cada grupo sempre fica. Duplicados menores estão na seção Duplicados." />
                     <Section icon={<FileSearch />} title="Arquivos grandes e esquecidos" rows={rows.largeOld} selected={selected} onToggle={toggle} note="Mais de 500 MB e sem modificação há mais de um ano. Nenhum vem marcado." />
                   </>
+                )}
+                {focus === "dev" && (
+                  <Section
+                    defaultOpen
+                    icon={<Boxes />}
+                    title="Pastas que dá para recriar"
+                    rows={rows.artifacts}
+                    selected={selected}
+                    onToggle={toggle}
+                    onAll={(v) => setMany(rows.artifacts.filter((x) => !x.locked).map((x) => x.key), v)}
+                    note="Só vêm marcadas as que nada contraindica. As marcadas como Revisar (por exemplo, sem lockfile) ficam por sua conta."
+                  />
                 )}
                 {focus === "apps" && (
                   <>
@@ -443,6 +504,12 @@ export function SmartCarePage() {
                 </li>
               )}
             </ul>
+            {unsyncedRepos.length > 0 && rows?.artifacts.some((a) => selected.has(a.key)) && (
+              <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--review)_12%,transparent)] px-3 py-2 text-[12px] text-review">
+                {formatCount(unsyncedRepos.length)} {unsyncedRepos.length === 1 ? "repositório tem" : "repositórios têm"} trabalho não enviado. Remover pastas regeneráveis não toca nesses
+                arquivos, mas vale fazer um snapshot em Projetos antes.
+              </p>
+            )}
             <p className="mt-3 text-[11.5px] text-ink-3">Cada item é validado de novo antes: pastas do sistema, arquivos alterados desde a análise e a última cópia de um duplicado são sempre preservados.</p>
           </div>
           <div className="flex justify-end gap-2 border-t border-line px-6 py-3">

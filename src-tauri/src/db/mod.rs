@@ -43,6 +43,50 @@ const MIGRATIONS: &[&str] = &[
      );
      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
      CREATE TABLE metrics (key TEXT PRIMARY KEY, value INTEGER NOT NULL);",
+    // v2: developer care (M12), backup guard (M13) and quarantine (M14)
+    "CREATE TABLE dev_roots (
+        path TEXT PRIMARY KEY,
+        added_at INTEGER NOT NULL
+     );
+     CREATE TABLE dev_repos (
+        path TEXT PRIMARY KEY,
+        last_scan INTEGER,
+        remote_visibility TEXT,
+        visibility_checked_at INTEGER
+     );
+     CREATE TABLE dev_snapshots (
+        id TEXT PRIMARY KEY,
+        repo TEXT NOT NULL,
+        ref_name TEXT NOT NULL,
+        commit_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        pushed_at INTEGER
+     );
+     CREATE INDEX dev_snapshots_repo ON dev_snapshots(repo, created_at DESC);
+     CREATE TABLE tm_exclusions (
+        path TEXT PRIMARY KEY,
+        added_at INTEGER NOT NULL,
+        source_artifact_kind TEXT,
+        removed_at INTEGER
+     );
+     CREATE TABLE quarantine_batches (
+        id TEXT PRIMARY KEY,
+        dir TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+     );
+     CREATE TABLE quarantine_items (
+        id TEXT PRIMARY KEY,
+        batch_id TEXT NOT NULL REFERENCES quarantine_batches(id),
+        origin TEXT NOT NULL,
+        dest TEXT NOT NULL,
+        size INTEGER NOT NULL DEFAULT 0,
+        quarantined_at INTEGER NOT NULL,
+        restored_at INTEGER,
+        emptied_at INTEGER
+     );
+     CREATE INDEX quarantine_items_batch ON quarantine_items(batch_id);",
+    // v3: remember which remote URL a cached visibility answer was about
+    "ALTER TABLE dev_repos ADD COLUMN remote_url TEXT;",
 ];
 
 pub struct Db {
@@ -85,6 +129,33 @@ pub struct IgnoreEntry {
     pub path: String,
     pub added_at: i64,
     pub reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotRecord {
+    pub id: String,
+    pub repo: String,
+    pub ref_name: String,
+    pub commit_id: String,
+    pub created_at: i64,
+    pub pushed_at: Option<i64>,
+}
+
+/// A remote visibility answer the user asked for earlier. Only valid for the URL it was about.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CachedVisibility {
+    pub visibility: String,
+    pub remote_url: String,
+    pub checked_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DevRoot {
+    pub path: String,
+    pub added_at: i64,
 }
 
 pub fn now_ms() -> i64 {
@@ -208,6 +279,87 @@ impl Db {
         Ok(())
     }
 
+    /// Records an action that is not a removal (snapshot, push…) in the operation log without
+    /// touching the "space reclaimed" metrics that `log_operation` keeps.
+    pub fn log_action(&self, action: &str, path: &str, ok: bool, detail: Option<&str>) -> AppResult<()> {
+        self.conn.execute(
+            "INSERT INTO operations (ts, action, path, size, ok, detail) VALUES (?1, ?2, ?3, 0, ?4, ?5)",
+            params![now_ms(), action, path, ok, detail],
+        )?;
+        Ok(())
+    }
+
+    pub fn dev_roots(&self) -> AppResult<Vec<DevRoot>> {
+        let mut stmt = self.conn.prepare("SELECT path, added_at FROM dev_roots ORDER BY path")?;
+        let rows = stmt.query_map([], |r| Ok(DevRoot { path: r.get(0)?, added_at: r.get(1)? }))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn add_dev_root(&self, path: &str) -> AppResult<()> {
+        self.conn.execute("INSERT OR IGNORE INTO dev_roots (path, added_at) VALUES (?1, ?2)", params![path, now_ms()])?;
+        Ok(())
+    }
+
+    pub fn remove_dev_root(&self, path: &str) -> AppResult<()> {
+        self.conn.execute("DELETE FROM dev_roots WHERE path = ?1", params![path])?;
+        Ok(())
+    }
+
+    pub fn mark_snapshot_pushed_by_ref(&self, repo: &str, ref_name: &str) -> AppResult<()> {
+        self.conn.execute(
+            "UPDATE dev_snapshots SET pushed_at = ?3 WHERE repo = ?1 AND ref_name = ?2",
+            params![repo, ref_name, now_ms()],
+        )?;
+        Ok(())
+    }
+
+    pub fn record_snapshot(&self, repo: &str, ref_name: &str, commit_id: &str) -> AppResult<String> {
+        let id = uuid::Uuid::new_v4().to_string();
+        self.conn.execute(
+            "INSERT INTO dev_snapshots (id, repo, ref_name, commit_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![id, repo, ref_name, commit_id, now_ms()],
+        )?;
+        Ok(id)
+    }
+
+    pub fn snapshots(&self, repo: Option<&str>) -> AppResult<Vec<SnapshotRecord>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, repo, ref_name, commit_id, created_at, pushed_at FROM dev_snapshots
+             WHERE (?1 IS NULL OR repo = ?1) ORDER BY created_at DESC",
+        )?;
+        let rows = stmt.query_map(params![repo], |r| {
+            Ok(SnapshotRecord { id: r.get(0)?, repo: r.get(1)?, ref_name: r.get(2)?, commit_id: r.get(3)?, created_at: r.get(4)?, pushed_at: r.get(5)? })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn set_visibility(&self, repo: &str, remote_url: &str, visibility: &str) -> AppResult<()> {
+        self.conn.execute(
+            "INSERT INTO dev_repos (path, remote_visibility, visibility_checked_at, remote_url) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(path) DO UPDATE SET remote_visibility = ?2, visibility_checked_at = ?3, remote_url = ?4",
+            params![repo, visibility, now_ms(), remote_url],
+        )?;
+        Ok(())
+    }
+
+    /// The cached answer for `repo`, only if it was about `remote_url`.
+    pub fn visibility(&self, repo: &str, remote_url: &str) -> AppResult<Option<CachedVisibility>> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT remote_visibility, remote_url, visibility_checked_at FROM dev_repos
+                 WHERE path = ?1 AND remote_url = ?2 AND remote_visibility IS NOT NULL",
+                params![repo, remote_url],
+                |r| Ok(CachedVisibility { visibility: r.get(0)?, remote_url: r.get(1)?, checked_at: r.get(2)? }),
+            )
+            .optional()?)
+    }
+
+    pub fn mark_snapshot_pushed(&self, id: &str) -> AppResult<()> {
+        self.conn.execute("UPDATE dev_snapshots SET pushed_at = ?2 WHERE id = ?1", params![id, now_ms()])?;
+        Ok(())
+    }
+
     pub fn setting(&self, key: &str) -> AppResult<Option<String>> {
         Ok(self.conn.query_row("SELECT value FROM settings WHERE key = ?1", params![key], |r| r.get(0)).optional()?)
     }
@@ -258,5 +410,83 @@ mod tests {
         assert!(db.ignore_list().unwrap().is_empty());
         db.set_setting("k", "v").unwrap();
         assert_eq!(db.setting("k").unwrap().as_deref(), Some("v"));
+    }
+
+    #[test]
+    fn v2_tables_exist_and_user_version_matches() {
+        let db = Db::open_in_memory().unwrap();
+        let version: i64 = db.conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+        assert_eq!(version as usize, MIGRATIONS.len());
+        for table in ["dev_roots", "dev_repos", "dev_snapshots", "tm_exclusions", "quarantine_batches", "quarantine_items"] {
+            let n: i64 = db
+                .conn
+                .query_row("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?1", params![table], |r| r.get(0))
+                .unwrap();
+            assert_eq!(n, 1, "{table}");
+        }
+    }
+
+    #[test]
+    fn snapshots_are_recorded_and_marked_pushed() {
+        let db = Db::open_in_memory().unwrap();
+        let a = db.record_snapshot("/r", "wip/snapshot-2024-01-01", "abc").unwrap();
+        db.record_snapshot("/other", "wip/snapshot-2024-01-02", "def").unwrap();
+        assert_eq!(db.snapshots(Some("/r")).unwrap().len(), 1);
+        assert_eq!(db.snapshots(None).unwrap().len(), 2);
+        assert!(db.snapshots(Some("/r")).unwrap()[0].pushed_at.is_none());
+        db.mark_snapshot_pushed(&a).unwrap();
+        assert!(db.snapshots(Some("/r")).unwrap()[0].pushed_at.is_some());
+    }
+
+    #[test]
+    fn visibility_cache_is_only_valid_for_the_same_remote_url() {
+        let db = Db::open_in_memory().unwrap();
+        assert!(db.visibility("/r", "git@github.com:me/x.git").unwrap().is_none());
+        db.set_visibility("/r", "git@github.com:me/x.git", "public").unwrap();
+        let hit = db.visibility("/r", "git@github.com:me/x.git").unwrap().unwrap();
+        assert_eq!(hit.visibility, "public");
+        assert!(db.visibility("/r", "git@github.com:me/other.git").unwrap().is_none());
+        db.set_visibility("/r", "git@github.com:me/other.git", "privateOrMissing").unwrap();
+        assert_eq!(db.visibility("/r", "git@github.com:me/other.git").unwrap().unwrap().visibility, "privateOrMissing");
+        assert!(db.visibility("/r", "git@github.com:me/x.git").unwrap().is_none());
+    }
+
+    #[test]
+    fn dev_roots_and_non_removal_actions() {
+        let db = Db::open_in_memory().unwrap();
+        db.add_dev_root("/Users/me/Projects").unwrap();
+        db.add_dev_root("/Users/me/Projects").unwrap(); // idempotent
+        db.add_dev_root("/Users/me/Work").unwrap();
+        assert_eq!(db.dev_roots().unwrap().iter().map(|r| r.path.as_str()).collect::<Vec<_>>(), ["/Users/me/Projects", "/Users/me/Work"]);
+        db.remove_dev_root("/Users/me/Work").unwrap();
+        assert_eq!(db.dev_roots().unwrap().len(), 1);
+
+        // A snapshot is logged, but it must not count as space reclaimed or items removed.
+        db.log_action("snapshot", "/Users/me/Projects/app", true, Some("wip/snapshot-2024-05-06")).unwrap();
+        assert_eq!(db.operations(10).unwrap()[0].action, "snapshot");
+        let metrics: std::collections::HashMap<_, _> = db.metrics().unwrap().into_iter().collect();
+        assert!(!metrics.contains_key("items_removed_total") && !metrics.contains_key("bytes_reclaimed_total"));
+
+        let id = db.record_snapshot("/r", "wip/snapshot-2024-05-06", "abc").unwrap();
+        db.mark_snapshot_pushed_by_ref("/r", "wip/snapshot-2024-05-06").unwrap();
+        let snap = db.snapshots(Some("/r")).unwrap();
+        assert_eq!(snap[0].id, id);
+        assert!(snap[0].pushed_at.is_some());
+    }
+
+    #[test]
+    fn upgrades_a_v1_database_in_place() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("old.sqlite");
+        {
+            let conn = Connection::open(&path).unwrap();
+            conn.execute_batch(MIGRATIONS[0]).unwrap();
+            conn.pragma_update(None, "user_version", 1i64).unwrap();
+            conn.execute("INSERT INTO settings (key, value) VALUES ('k', 'kept')", []).unwrap();
+        }
+        let db = Db::open(&path).unwrap();
+        assert_eq!(db.setting("k").unwrap().as_deref(), Some("kept"));
+        let version: i64 = db.conn.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+        assert_eq!(version as usize, MIGRATIONS.len());
     }
 }

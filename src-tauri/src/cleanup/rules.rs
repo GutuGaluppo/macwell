@@ -165,7 +165,7 @@ pub struct RuleResult {
     pub unavailable: bool,
 }
 
-fn size_of(path: &Path) -> u64 {
+pub fn size_of(path: &Path) -> u64 {
     let meta = std::fs::symlink_metadata(path);
     if meta.as_ref().is_ok_and(|m| !m.is_dir()) {
         return meta.map(|m| m.len()).unwrap_or(0);

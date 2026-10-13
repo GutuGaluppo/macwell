@@ -52,6 +52,7 @@
 [data-tint="apps"] { --tint: #3fd9f0; --glow: #2563eb; --deep: #062a47; }
 [data-tint="clutter"] { --tint: #b69bff; --glow: #7c3aed; --deep: #1f1052; }
 [data-tint="spaceMap"] { --tint: #3fe0c8; --glow: #0a8fb0; --deep: #06302f; }
+[data-tint="dev"] { --tint: #ffd166; --glow: #ee8a1d; --deep: #3a2606; }
 [data-tint="scanner"] { --tint: #939dff; --glow: #4f46e5; --deep: #151a55; }
 
 [data-tint] {

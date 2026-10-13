@@ -3,8 +3,10 @@ pub mod cleanup;
 pub mod cloud;
 pub mod commands;
 pub mod db;
+pub mod dev;
 pub mod duplicates;
 pub mod error;
+pub mod exec;
 pub mod filesystem;
 pub mod images;
 pub mod jobs;
@@ -84,6 +86,18 @@ pub fn run() {
         .setup(setup)
         .invoke_handler(tauri::generate_handler![
             commands::cancel_job,
+            commands::dev::list_dev_roots,
+            commands::dev::add_dev_root,
+            commands::dev::remove_dev_root,
+            commands::dev::start_dev_scan,
+            commands::dev::scan_repo_secrets,
+            commands::dev::plan_wip_snapshot,
+            commands::dev::create_wip_snapshot,
+            commands::dev::list_dev_snapshots,
+            commands::dev::plan_push_snapshot,
+            commands::dev::check_remote_visibility,
+            commands::dev::push_snapshot,
+            commands::dev::remove_dev_artifacts,
             commands::scan::start_scan,
             commands::scan::storage_node,
             commands::files::disk_overview,

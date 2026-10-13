@@ -8,6 +8,7 @@ use super::scan::scan_options;
 use super::{start_job, JobEvent, JobOutcome};
 use crate::applications::leftovers::{installed_bundle_ids, still_orphan};
 use crate::cleanup::{self, trash_bin, RemovalItem, RemovalRequest};
+use crate::dev::removal::ArtifactRemoval;
 use crate::duplicates::{unchanged, validate_group, GroupRemoval};
 use crate::error::{AppError, AppResult};
 use crate::smart_care::{self, SmartCareReport};
@@ -20,7 +21,8 @@ pub fn start_smart_care(app: AppHandle, on_event: Channel<JobEvent<Option<SmartC
         let home = state.paths.home.clone();
         emit(crate::filesystem::scanner::ScanEvent::Start { root: home.display().to_string() });
         let base = scan_options(state, &home);
-        match smart_care::run(&home, &base, cancel, emit) {
+        let dev_roots: Vec<PathBuf> = state.db.lock().unwrap().dev_roots()?.into_iter().map(|r| PathBuf::from(r.path)).collect();
+        match smart_care::run(&home, &base, cancel, &dev_roots, emit) {
             Ok(report) => Ok(JobOutcome { cancelled: false, result: Some(report) }),
             Err(AppError::Cancelled) => Ok(JobOutcome { cancelled: true, result: None }),
             Err(e) => Err(e),
@@ -42,6 +44,9 @@ pub struct CarePlan {
     pub duplicates: Vec<GroupRemoval>,
     #[serde(default)]
     pub leftovers: Vec<RemovalItem>,
+    /// Regenerable folders inside projects; each one is re-derived on the server before it moves.
+    #[serde(default)]
+    pub artifacts: Vec<ArtifactRemoval>,
 }
 
 /// Runs a reviewed Smart Care plan. The Trash is emptied first and only the reviewed items are
@@ -91,6 +96,9 @@ pub async fn run_smart_care(app: AppHandle, plan: CarePlan) -> AppResult<Vec<Ope
         let removed: Vec<PathBuf> = moved.iter().filter(|o| o.ok).map(|o| PathBuf::from(&o.path)).collect();
         state.forget_paths(&removed);
         outcomes.extend(moved);
+        if !plan.artifacts.is_empty() {
+            outcomes.extend(super::dev::remove_artifacts(&state, plan.artifacts)?);
+        }
         Ok(outcomes)
     })
     .await

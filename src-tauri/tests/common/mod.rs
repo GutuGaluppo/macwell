@@ -2,6 +2,8 @@
 //! zero-byte files, permission-denied folders, deep trees, unicode and hidden names.
 #![allow(dead_code)]
 
+pub mod git;
+
 use std::fs::{self, File};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};

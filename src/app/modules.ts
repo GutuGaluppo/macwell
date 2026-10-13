@@ -54,6 +54,15 @@ export const modules: Module[] = [
     sections: [{ id: "security", label: "Auditoria de segurança", job: "security" }],
   },
   {
+    id: "dev",
+    label: "Projetos",
+    tagline: "Repositórios e builds",
+    icon: scanner, // placeholder until the module gets its own glass icon
+    sections: [
+      { id: "projects", label: "Projetos", job: "dev" },
+    ],
+  },
+  {
     id: "performance",
     label: "Desempenho",
     tagline: "CPU, memória e bateria",

@@ -2,7 +2,7 @@
 // answered with fictitious data so screens can be designed and checked without the Rust core.
 // Never bundled into the app (imported only when `import.meta.env.DEV` and outside Tauri).
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
+import type { DevArtifact, DevReport, DevRoot, PushPlan, RemoteView, RepoReport, SecretFinding, SnapshotPlan, SnapshotRecord, Blocker, SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
 
 const HOME = "/Users/demo";
 const now = Date.now();
@@ -456,8 +456,8 @@ registerMock("start_smart_care", ({ onEvent }) => {
   let index = 0;
   const send = (message: unknown) =>
     (window as unknown as { __TAURI_INTERNALS__: { runCallback: (id: number, d: unknown) => void } }).__TAURI_INTERNALS__.runCallback(id, { index: index++, message });
-  const stages = ["trash", "downloads", "home", "duplicates", "apps", "leftovers"];
-  stages.forEach((s, i) => setTimeout(() => send({ event: "stage", stage: s, done: i, total: 6 }), 250 * i));
+  const stages = ["trash", "downloads", "home", "duplicates", "apps", "leftovers", "projects"];
+  stages.forEach((s, i) => setTimeout(() => send({ event: "stage", stage: s, done: i, total: 7 }), 250 * i));
   setTimeout(() => {
     const dl = (name: string, size: number, age: number, sel: boolean): DownloadItem => ({ ...fakeFile(`${HOME}/Downloads/${name}`, size, age, "diskImage"), group: sel ? "oldInstaller" : "recent", ageDays: age, extracted: false, confidence: sel ? "safe" : "review", selected: sel });
     const result: SmartCareReport = {
@@ -469,8 +469,11 @@ registerMock("start_smart_care", ({ onEvent }) => {
       largeOld: [fakeFile(`${HOME}/Documents/VM/Windows 11.vhdx`, 5.2e9, 700, "diskImage")],
       unusedApps: demoApps.filter((a) => (a.lastUsedAt ?? 0) < Date.now() - 180 * DAY),
       leftovers: [{ bundleId: "com.tinyspeck.slackmacgap", vendorInstalled: false, items: [lf("Caches/com.tinyspeck.slackmacgap", "caches", 88e6, "orphan", "safe")], size: 88e6 }],
+      dev: devReport(),
       recommendations: [
         { id: "lowDisk", level: "high", title: "Pouco espaço livre", detail: "Restam 82,0 GB (8% do disco). Abaixo de 10% o macOS pode ficar lento e falhar em atualizações.", bytes: 0 },
+        { id: "devUnpushed", level: "suggest", title: "Trabalho não enviado em 6 repositórios", detail: "Parte do que está lá só existe neste Mac. Faça um snapshot em Projetos antes de limpar.", bytes: 0 },
+        { id: "devArtifacts", level: "suggest", title: "Pastas dos projetos que dá para recriar", detail: "node_modules, target e similares somam 3,1 GB e voltam com um comando.", bytes: 3.1e9 },
         { id: "duplicates", level: "suggest", title: "Remover cópias duplicadas", detail: "Arquivos idênticos de mais de 10 MB ocupam 3,1 GB a mais.", bytes: 3.1e9 },
         { id: "emptyTrash", level: "suggest", title: "Esvaziar a Lixeira", detail: "A Lixeira ocupa 2,5 GB.", bytes: 2.5e9 },
         { id: "installers", level: "suggest", title: "Revisar instaladores em Downloads", detail: "3 instaladores; os antigos somam 1,2 GB.", bytes: 1.2e9 },
@@ -483,8 +486,9 @@ registerMock("start_smart_care", ({ onEvent }) => {
   return crypto.randomUUID();
 });
 registerMock("run_smart_care", ({ plan }) => {
-  const p = plan as { files: { path: string; size: number }[]; leftovers: { path: string; size: number }[] };
-  return [...p.files, ...p.leftovers].map((i) => ({ ...i, ok: true, error: null }));
+  const p = plan as { files: { path: string; size: number }[]; leftovers: { path: string; size: number }[]; artifacts?: { path: string; size: number }[] };
+  p.artifacts?.forEach((a) => removedArtifacts.add(a.path));
+  return [...p.files, ...p.leftovers, ...(p.artifacts ?? [])].map((i) => ({ path: i.path, size: i.size, ok: true, error: null }));
 });
 
 const rule = (id: string, group: string, title: string, description: string, risk: string, items: [string, number, string | null, boolean][], extra: Record<string, unknown> = {}) => ({
@@ -556,6 +560,145 @@ registerMock("start_security_audit", ({ onEvent }) =>
     ],
   } as SecurityAudit), 900),
 );
+
+// ---- Developer Care (M12): fictitious repositories covering every state the screen has to show.
+const devRoots: DevRoot[] = [{ path: `${HOME}/Projects`, addedAt: now - 20 * DAY }];
+const devSnapshots: SnapshotRecord[] = [];
+const removedArtifacts = new Set<string>();
+const devVisibility: Record<string, { v: "public" | "privateOrMissing" | "unknown"; at: number }> = {};
+
+const gh = (name: string, owner = "demo"): RemoteView => ({ name: "origin", url: `git@github.com:${owner}/${name}.git`, kind: { kind: "github", owner, repo: name } });
+const st = (o: Partial<NonNullable<RepoReport["status"]>> = {}): NonNullable<RepoReport["status"]> => ({
+  branch: "main", detached: false, noCommits: false, upstream: "origin/main", ahead: 0, behind: 0, changed: 0, untracked: 0, conflicted: 0, ...o,
+});
+const repo = (name: string, over: Partial<RepoReport>): RepoReport => ({
+  path: `${HOME}/Projects/${name}`, root: `${HOME}/Projects`, gitFile: false, parent: null, status: st(), remotes: [gh(name)], submodules: [], embedded: [],
+  error: null, artifactBytes: 0, lastSnapshot: null, ...over,
+});
+const art = (name: string, sub: string, kind: string, mb: number, over: Partial<DevArtifact> = {}): DevArtifact => ({
+  path: `${HOME}/Projects/${name}/${sub}`, project: `${HOME}/Projects/${name}`, repo: `${HOME}/Projects/${name}`, kind, size: mb * 1e6, lastUsedMs: now - 12 * DAY,
+  reason: kind === "node-modules" ? "Dependências instaladas. Voltam com npm, yarn ou pnpm install a partir do package.json." : kind === "rust-target" ? "Saída de compilação do Rust. Volta com cargo build." : "Saída de build. Volta com o script de build do projeto.",
+  confidence: "safe", notes: [], cleanupRuleId: null, ...over,
+});
+
+function devReport(): DevReport {
+  const artifacts: DevArtifact[] = [
+    art("AudioPlayground", "node_modules", "node-modules", 145.6),
+    art("AudioPlayground", "dist", "js-dist", 3),
+    art("AudioPlayground", "ui/node_modules", "node-modules", 2.8, { confidence: "review", notes: ["noLockfile"], lastUsedMs: now - 200 * DAY }),
+    art("Nodi", "src-tauri/target", "rust-target", 1222.6, { lastUsedMs: now - 3 * DAY }),
+    art("Nodi", "node_modules", "node-modules", 206.7),
+    art("Relay", "apps/mobile/ios/Pods", "cocoapods", 1238.6, { lastUsedMs: now - 95 * DAY }),
+    art("Relay", "dist", "js-dist", 27.8, { confidence: "review", notes: ["notIgnored"] }),
+    art("tattoo_tips", "node_modules", "node-modules", 323.2, { lastUsedMs: now - 400 * DAY }),
+    art("legacy-site", "build", "build-output", 61, { confidence: "review", notes: ["tracked"] }),
+  ];
+  const live = artifacts.filter((a) => !removedArtifacts.has(a.path));
+  const repos: RepoReport[] = [
+    repo("AudioPlayground", { status: st({ ahead: 2, changed: 1 }), artifactBytes: 152.4e6 }),
+    repo("Nodi", { status: st({ branch: "test/gpt-5.4-transcription", upstream: null, ahead: null, behind: null, changed: 33 }), artifactBytes: 1429.3e6 }),
+    repo("Relay", { status: st({ changed: 20, untracked: 5 }), artifactBytes: 1266.4e6 }),
+    repo("tattoo_tips", { status: st({ branch: "master", upstream: "origin/master", behind: 8, changed: 41, untracked: 3 }), artifactBytes: 323.2e6 }),
+    repo("GymApp", { status: st(), submodules: ["Packages/GymCore"] }),
+    repo("GymApp/Packages/GymCore", { path: `${HOME}/Projects/GymApp/Packages/GymCore`, parent: `${HOME}/Projects/GymApp`, gitFile: true, status: st({ upstream: null, ahead: null, behind: null }) }),
+    repo("legacy-site", { status: st({ branch: "master", upstream: null, ahead: null, behind: null, changed: 4 }), remotes: [], embedded: ["vendor/old-lib"], artifactBytes: 61e6 }),
+    repo("dotfiles", { remotes: [{ name: "backup", url: "/Volumes/Backup/dotfiles.git", kind: { kind: "local" } }], status: st({ upstream: "backup/main" }) }),
+    repo("broken-repo", { status: null, remotes: [], error: "git status: fatal: detected dubious ownership in repository" }),
+  ];
+  for (const r of repos) r.lastSnapshot = devSnapshots.filter((x) => x.repo === r.path).sort((a, b) => b.createdAt - a.createdAt)[0] ?? null;
+  for (const r of repos) r.artifactBytes = live.filter((a) => a.repo === r.path).reduce((n, a) => n + a.size, 0);
+  return { roots: devRoots.map((r) => r.path), repos, artifacts: live, gitError: null, scannedAt: Date.now() };
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+const repoName = (p: string) => p.split("/").pop() ?? p;
+const hasPath = (list: string[], path: string) => list.some((e) => path === e || path.startsWith(`${e}/`));
+
+function snapshotPlan(repoPath: string, excludes: string[]): SnapshotPlan {
+  const name = repoName(repoPath);
+  const found = devReport().repos.find((r) => r.path === repoPath);
+  const s = found?.status;
+  const secrets: SecretFinding[] =
+    name === "Nodi"
+      ? [
+          { path: ".env", kind: "envFile", source: "name", tracked: false },
+          { path: "keys/deploy.pem", kind: "privateKeyBlock", source: "content", tracked: false },
+        ].filter((f) => !hasPath(excludes, f.path)) as SecretFinding[]
+      : [];
+  const untracked = [
+    ...(name === "Nodi" && !hasPath(excludes, "capture.mov") ? [{ path: "capture.mov", size: 120e6 }] : []),
+    { path: "notes/ideas.md", size: 4200 },
+    { path: "scratch/test.ts", size: 1300 },
+  ];
+  const blockers: Blocker[] = [];
+  if (secrets.length) blockers.push({ code: "secrets", count: secrets.length });
+  untracked.filter((f) => f.size > 50e6).forEach((f) => blockers.push({ code: "fileTooBig", path: f.path, size: f.size }));
+  if (name === "legacy-site") blockers.push({ code: "filtersConfigured" });
+  if (name === "GymApp" || (s && s.changed + s.untracked === 0 && name !== "dotfiles")) blockers.push({ code: "nothingToSave" });
+  return {
+    repo: repoPath, branch: s?.branch ?? null, head: "e7ca3cd643065a1a23641b0d0a6b27d390e513df", refName: `wip/snapshot-${today()}`,
+    changed: s?.changed ?? 0, untrackedCount: untracked.length, untrackedBytes: untracked.reduce((a, f) => a + f.size, 0), untracked,
+    excludes, secrets, trackedSecrets: name === "AudioPlayground" ? 1 : 0, warnings: [], blockers,
+  };
+}
+
+function pushPlan(repoPath: string, refName: string, remote: string): PushPlan {
+  const r = devReport().repos.find((x) => x.path === repoPath);
+  const rv = r?.remotes.find((x) => x.name === remote) ?? r?.remotes[0];
+  if (!rv) return Promise.reject({ kind: "invalid", message: `remote desconhecido: ${remote}` }) as never;
+  const cached = devVisibility[`${repoPath}|${rv.url}`];
+  const kind = rv.kind;
+  const warning = kind.kind === "local" ? null : cached?.v === "privateOrMissing" ? null : cached?.v === "public" ? "public" : "unknown";
+  return {
+    repo: repoPath, remote: rv.name, url: rv.url, kind, refName, commit: "e9c43389c57cb6a7ff4a80533067e28c35d77008",
+    visibility: cached?.v ?? null, visibilityCheckedAt: cached?.at ?? null, warning, remotes: r?.remotes.map((x) => x.name) ?? [],
+  };
+}
+
+registerMock("list_dev_roots", () => devRoots);
+registerMock("add_dev_root", ({ path }) => {
+  if (!devRoots.some((r) => r.path === path)) devRoots.push({ path: String(path), addedAt: Date.now() });
+  return null;
+});
+registerMock("remove_dev_root", ({ path }) => {
+  const i = devRoots.findIndex((r) => r.path === path);
+  if (i >= 0) devRoots.splice(i, 1);
+  return null;
+});
+registerMock("start_dev_scan", ({ onEvent }) => streamJob<DevReport>(onEvent, `${HOME}/Projects`, devReport, 1400));
+registerMock("scan_repo_secrets", ({ repo: r }) => ({ findings: snapshotPlan(String(r), []).secrets, filesChecked: 412, contentSkipped: 31, unreadable: 0, truncated: false }));
+registerMock("plan_wip_snapshot", ({ repo: r, excludes }) => snapshotPlan(String(r), (excludes as string[]) ?? []));
+registerMock("create_wip_snapshot", ({ repo: r, excludes }) => {
+  const plan = snapshotPlan(String(r), (excludes as string[]) ?? []);
+  if (plan.blockers.length) return Promise.reject({ kind: "invalid", message: "o snapshot não pode ser criado: " + JSON.stringify(plan.blockers) });
+  const rec: SnapshotRecord = { id: crypto.randomUUID(), repo: String(r), refName: plan.refName, commitId: "e9c43389c57cb6a7ff4a80533067e28c35d77008", createdAt: Date.now(), pushedAt: null };
+  devSnapshots.push(rec);
+  return { repo: String(r), refName: plan.refName, commit: rec.commitId, tree: "a".repeat(40), parent: plan.head, warnings: [] };
+});
+registerMock("remove_dev_artifacts", ({ items }) =>
+  (items as { path: string; size: number }[]).map((i) => {
+    const tracked = devReport().artifacts.find((a) => a.path === i.path)?.notes.includes("tracked");
+    if (tracked) return { path: i.path, size: i.size, ok: false, error: "tem arquivos versionados no git: remova pelo git, não por aqui" };
+    removedArtifacts.add(i.path);
+    return { path: i.path, size: i.size, ok: true, error: null };
+  }),
+);
+registerMock("list_dev_snapshots", () => devSnapshots);
+registerMock("plan_push_snapshot", ({ repo: r, refName, remote }) => pushPlan(String(r), String(refName), String(remote)));
+registerMock("check_remote_visibility", ({ repo: r, refName, remote }) => {
+  const plan = pushPlan(String(r), String(refName), String(remote));
+  if (plan.kind.kind !== "github") return Promise.reject({ kind: "invalid", message: "só é possível verificar remotes do github.com" });
+  devVisibility[`${r}|${plan.url}`] = { v: repoName(String(r)) === "Nodi" ? "privateOrMissing" : "public", at: Date.now() };
+  return pushPlan(String(r), String(refName), String(remote));
+});
+registerMock("push_snapshot", ({ repo: r, refName, remote, confirmed, acceptExposure }) => {
+  const plan = pushPlan(String(r), String(refName), String(remote));
+  if (!confirmed) return Promise.reject({ kind: "invalid", message: "o envio precisa ser confirmado" });
+  if (plan.warning && !acceptExposure) return Promise.reject({ kind: "invalid", message: "este remote é público ou de visibilidade desconhecida: aceite o aviso para enviar" });
+  const snap = devSnapshots.find((x) => x.repo === r && x.refName === refName);
+  if (snap) snap.pushedAt = Date.now();
+  return { remote: plan.remote, url: plan.url, refName: plan.refName, commit: plan.commit };
+});
 
 export function install() {
   mockIPC((cmd, args) => {

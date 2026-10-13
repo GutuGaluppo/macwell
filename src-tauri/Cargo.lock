@@ -2310,6 +2310,7 @@ dependencies = [
  "objc2-app-kit",
  "plist",
  "rayon",
+ "regex",
  "roxmltree",
  "rusqlite",
  "serde",

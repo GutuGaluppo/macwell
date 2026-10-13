@@ -314,6 +314,8 @@ export type SmartCareReport = {
   largeOld: FileEntry[];
   unusedApps: AppInfo[];
   leftovers: OrphanGroup[];
+  /** Repositories and regenerable folders; null when no project folder was added. */
+  dev: DevReport | null;
   recommendations: Recommendation[];
   durationMs: number;
 };
@@ -323,6 +325,7 @@ export type CarePlan = {
   files: { path: string; size: number }[];
   duplicates: { all: string[]; remove: { path: string; size: number; modifiedAt: number | null }[] }[];
   leftovers: { path: string; size: number }[];
+  artifacts: ArtifactRemoval[];
 };
 
 export type Risk = "low" | "medium" | "high";
@@ -407,3 +410,130 @@ export type PersistenceItem = {
 export type AppAudit = { path: string; name: string; signature: Signature; gatekeeper?: string | null; gatekeeperChecked: boolean; quarantined: boolean; findings: Finding[] };
 
 export type SecurityAudit = { persistence: PersistenceItem[]; apps: AppAudit[] };
+
+// ---- Developer Care (M12). Mirrors src-tauri/src/dev and commands/dev.rs.
+
+export type DevRoot = { path: string; addedAt: number };
+
+export type RemoteKind = { kind: "local" } | { kind: "github"; owner: string; repo: string } | { kind: "other"; host: string };
+
+export type Visibility = "public" | "privateOrMissing" | "unknown";
+
+export type RemoteView = { name: string; url: string; kind: RemoteKind };
+
+export type StatusInfo = {
+  branch: string | null;
+  detached: boolean;
+  noCommits: boolean;
+  upstream: string | null;
+  ahead: number | null;
+  behind: number | null;
+  changed: number;
+  untracked: number;
+  conflicted: number;
+};
+
+export type SnapshotRecord = { id: string; repo: string; refName: string; commitId: string; createdAt: number; pushedAt: number | null };
+
+export type RepoReport = {
+  path: string;
+  root: string;
+  gitFile: boolean;
+  parent: string | null;
+  status: StatusInfo | null;
+  remotes: RemoteView[];
+  submodules: string[];
+  embedded: string[];
+  error: string | null;
+  artifactBytes: number;
+  lastSnapshot: SnapshotRecord | null;
+};
+
+export type ArtifactNote = "noLockfile" | "tracked" | "notIgnored" | "gitUnknown";
+
+export type DevArtifact = {
+  path: string;
+  project: string;
+  repo: string;
+  kind: string;
+  size: number;
+  lastUsedMs: number | null;
+  reason: string;
+  confidence: Confidence;
+  notes: ArtifactNote[];
+  cleanupRuleId: string | null;
+};
+
+export type DevReport = {
+  roots: string[];
+  repos: RepoReport[];
+  artifacts: DevArtifact[];
+  gitError: string | null;
+  scannedAt: number;
+};
+
+export type SecretKind =
+  | "envFile"
+  | "privateKeyFile"
+  | "credentialsFile"
+  | "privateKeyBlock"
+  | "awsAccessKey"
+  | "githubToken"
+  | "apiKey"
+  | "slackToken"
+  | "stripeKey"
+  | "googleApiKey"
+  | "jwt"
+  | "npmToken";
+
+/** A path and a kind, never the value. */
+export type SecretFinding = { path: string; kind: SecretKind; source: "name" | "content"; tracked: boolean };
+
+export type SecretScan = { findings: SecretFinding[]; filesChecked: number; contentSkipped: number; unreadable: number; truncated: boolean };
+
+export type Blocker =
+  | { code: "secrets"; count: number }
+  | { code: "fileTooBig"; path: string; size: number }
+  | { code: "totalTooBig"; bytes: number }
+  | { code: "filtersConfigured" }
+  | { code: "nothingToSave" }
+  | { code: "noFreeRefName" };
+
+export type SnapshotPlan = {
+  repo: string;
+  branch: string | null;
+  head: string | null;
+  refName: string;
+  changed: number;
+  untrackedCount: number;
+  untrackedBytes: number;
+  untracked: { path: string; size: number }[];
+  excludes: string[];
+  secrets: SecretFinding[];
+  trackedSecrets: number;
+  warnings: string[];
+  blockers: Blocker[];
+};
+
+export type SnapshotResult = { repo: string; refName: string; commit: string; tree: string; parent: string | null; warnings: string[] };
+
+export type PushWarning = "public" | "unknown";
+
+export type PushPlan = {
+  repo: string;
+  remote: string;
+  url: string;
+  kind: RemoteKind;
+  refName: string;
+  commit: string;
+  visibility: Visibility | null;
+  visibilityCheckedAt: number | null;
+  warning: PushWarning | null;
+  remotes: string[];
+};
+
+export type PushResult = { remote: string; url: string; refName: string; commit: string };
+
+/** What the user approved; the Rust side re-derives each folder before it moves. */
+export type ArtifactRemoval = { path: string; repo: string; kind: string; size: number };
+

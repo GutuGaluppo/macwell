@@ -1,0 +1,80 @@
+{
+  "_comment": "Pastas regeneráveis dentro de projetos. 'markers': arquivos/pastas irmãos que provam o tipo de projeto (aceita '*' no início). 'lockfiles': se a lista não for vazia, sem nenhum deles a recriação pode trazer versões diferentes e o item vira 'revisar'. 'ambiguous': nome que também aparece versionado (dist, build, Pods); só é seguro quando o git o ignora. 'cleanupRuleId': regra de builtin.json relacionada. Nunca adicionar pastas que guardem dados do usuário.",
+  "rules": [
+    {
+      "name": "node_modules",
+      "kind": "node-modules",
+      "markers": ["package.json"],
+      "lockfiles": ["package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb"],
+      "reason": "Dependências instaladas. Voltam com npm, yarn ou pnpm install a partir do package.json."
+    },
+    {
+      "name": "target",
+      "kind": "rust-target",
+      "markers": ["Cargo.toml"],
+      "lockfiles": ["Cargo.lock"],
+      "reason": "Saída de compilação do Rust. Volta com cargo build."
+    },
+    {
+      "name": "target",
+      "kind": "maven-target",
+      "markers": ["pom.xml"],
+      "reason": "Saída de compilação do Maven. Volta com mvn package."
+    },
+    {
+      "name": ".next",
+      "kind": "next-build",
+      "markers": ["package.json"],
+      "reason": "Cache e saída de build do Next.js. Volta com next build ou next dev."
+    },
+    {
+      "name": ".turbo",
+      "kind": "turbo-cache",
+      "markers": ["package.json"],
+      "reason": "Cache local do Turborepo. É recriado na próxima execução."
+    },
+    {
+      "name": "dist",
+      "kind": "js-dist",
+      "markers": ["package.json", "pyproject.toml", "setup.py"],
+      "ambiguous": true,
+      "reason": "Saída de build. Volta com o script de build do projeto."
+    },
+    {
+      "name": "build",
+      "kind": "build-output",
+      "markers": ["package.json", "build.gradle", "build.gradle.kts", "CMakeLists.txt", "pyproject.toml", "setup.py"],
+      "ambiguous": true,
+      "reason": "Saída de build. Volta com o comando de build do projeto."
+    },
+    {
+      "name": ".venv",
+      "kind": "python-venv",
+      "markers": ["pyproject.toml", "requirements.txt", "Pipfile", "setup.py", "setup.cfg"],
+      "lockfiles": ["poetry.lock", "uv.lock", "Pipfile.lock", "pdm.lock", "requirements.txt"],
+      "reason": "Ambiente virtual do Python. Volta com python -m venv e pip install."
+    },
+    {
+      "name": "Pods",
+      "kind": "cocoapods",
+      "markers": ["Podfile"],
+      "lockfiles": ["Podfile.lock"],
+      "ambiguous": true,
+      "reason": "Dependências do CocoaPods. Voltam com pod install."
+    },
+    {
+      "name": ".build",
+      "kind": "swiftpm-build",
+      "markers": ["Package.swift"],
+      "lockfiles": ["Package.resolved"],
+      "reason": "Saída de compilação do Swift Package Manager. Volta com swift build."
+    },
+    {
+      "name": "DerivedData",
+      "kind": "xcode-derived-data",
+      "markers": ["*.xcodeproj", "*.xcworkspace", "Package.swift"],
+      "cleanupRuleId": "xcode-derived-data",
+      "reason": "Builds intermediários do Xcode dentro do projeto. O Xcode reconstrói no próximo build."
+    }
+  ]
+}

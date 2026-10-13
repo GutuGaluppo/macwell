@@ -10,7 +10,7 @@ fn main() {
     let home = dirs::home_dir().unwrap();
     let base = ScanOptions { root: home.clone(), skipped: prompting_locations(&home, false), ..Default::default() };
     let cancel = Arc::new(AtomicBool::new(false));
-    let r = run(&home, &base, &cancel, &mut |e| {
+    let r = run(&home, &base, &cancel, &[], &mut |e| {
         if let ScanEvent::Stage { stage, .. } = e {
             eprintln!("stage {stage}");
         }

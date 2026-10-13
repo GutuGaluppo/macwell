@@ -1,8 +1,8 @@
 //! Smart Care: runs the existing scanners in one pass and turns their results into one reviewable
 //! plan with deterministic recommendations (no ML). Nothing runs until the user reviews the plan.
 
-use std::collections::HashSet;
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -12,8 +12,11 @@ use crate::applications::leftovers::{find_orphans, installed_bundle_ids, OrphanG
 use crate::applications::{list_apps, running_executables, AppInfo};
 use crate::cleanup::downloads::{self, DownloadGroup, DownloadItem};
 use crate::cleanup::trash_bin::{self, TrashSummary};
+use crate::dev::git::Git;
+use crate::dev::report::{build as build_dev_report, DevReport};
 use crate::duplicates::{DuplicateCandidates, DuplicateGroup, DuplicateSearch};
 use crate::error::{AppError, AppResult};
+use crate::exec::RealRunner;
 use crate::filesystem::scanner::{scan, ScanEvent, ScanOptions};
 use crate::storage::finder::{DateField, FileFilter, FileFinder};
 use crate::storage::volumes;
@@ -51,6 +54,9 @@ pub struct SmartCareReport {
     pub large_old: Vec<FileEntry>,
     pub unused_apps: Vec<AppInfo>,
     pub leftovers: Vec<OrphanGroup>,
+    /// Repositories and regenerable folders under the user's project folders; `None` when no project
+    /// folder was ever added.
+    pub dev: Option<DevReport>,
     pub recommendations: Vec<Recommendation>,
     pub duration_ms: u64,
 }
@@ -70,6 +76,10 @@ pub struct Facts {
     pub unused_apps: usize,
     pub unused_apps_bytes: u64,
     pub leftovers_safe_bytes: u64,
+    /// Repositories holding work that exists only on this Mac.
+    pub dev_unpushed_repos: usize,
+    /// Regenerable folders marked safe, so nothing that needs a look is counted.
+    pub dev_artifact_bytes: u64,
 }
 
 const GB: u64 = 1_000_000_000;
@@ -107,13 +117,33 @@ pub fn recommend(f: &Facts) -> Vec<Recommendation> {
     if f.leftovers_safe_bytes > 200_000_000 {
         out.push(rec("leftovers", "suggest", "Restos de apps desinstalados".into(), format!("Caches e preferências de apps que não estão mais no Mac somam {}.", gb(f.leftovers_safe_bytes)), f.leftovers_safe_bytes));
     }
-    out.sort_by_key(|r| (r.level != "high", std::cmp::Reverse(r.bytes)));
+    if f.dev_unpushed_repos > 0 {
+        out.push(rec(
+            "devUnpushed",
+            "suggest",
+            format!("Trabalho não enviado em {}", plural(f.dev_unpushed_repos, "repositório", "repositórios")),
+            "Parte do que está lá só existe neste Mac. Faça um snapshot em Projetos antes de limpar.".into(),
+            0,
+        ));
+    }
+    if f.dev_artifact_bytes > GB {
+        out.push(rec(
+            "devArtifacts",
+            "suggest",
+            "Pastas dos projetos que dá para recriar".into(),
+            format!("node_modules, target e similares somam {} e voltam com um comando.", gb(f.dev_artifact_bytes)),
+            f.dev_artifact_bytes,
+        ));
+    }
+    // Low disk space first; then work that would be lost (it matters whatever its size); then by size.
+    out.sort_by_key(|r| (r.level != "high", r.id != "devUnpushed", std::cmp::Reverse(r.bytes)));
     out
 }
 
-pub fn run(home: &Path, base: &ScanOptions, cancel: &Arc<AtomicBool>, emit: &mut dyn FnMut(ScanEvent)) -> AppResult<SmartCareReport> {
+pub fn run(home: &Path, base: &ScanOptions, cancel: &Arc<AtomicBool>, dev_roots: &[PathBuf], emit: &mut dyn FnMut(ScanEvent)) -> AppResult<SmartCareReport> {
     let started = std::time::Instant::now();
-    let stage = |emit: &mut dyn FnMut(ScanEvent), name: &str, n: u64| emit(ScanEvent::Stage { stage: name.into(), done: n, total: 6 });
+    let total_stages: u64 = if dev_roots.is_empty() { 6 } else { 7 };
+    let stage = |emit: &mut dyn FnMut(ScanEvent), name: &str, n: u64| emit(ScanEvent::Stage { stage: name.into(), done: n, total: total_stages });
     let check = || if cancel.load(Ordering::Relaxed) { Err(AppError::Cancelled) } else { Ok(()) };
 
     stage(emit, "trash", 0);
@@ -161,7 +191,19 @@ pub fn run(home: &Path, base: &ScanOptions, cancel: &Arc<AtomicBool>, emit: &mut
     let installed: HashSet<String> = installed_bundle_ids(home);
     let full_disk_access = crate::filesystem::probe_full_disk_access(home) == crate::filesystem::AccessStatus::Granted;
     let leftovers = find_orphans(&home.join("Library"), &installed, full_disk_access);
-    stage(emit, "done", 6);
+    check()?;
+
+    // Optional: only when the user chose project folders. Read-only, like every other stage.
+    let dev = if dev_roots.is_empty() {
+        None
+    } else {
+        stage(emit, "projects", 6);
+        let runner = RealRunner;
+        let report = build_dev_report(dev_roots, &Git::new(&runner), &HashMap::new(), cancel, &mut |_| {});
+        check()?;
+        Some(report)
+    };
+    stage(emit, "done", total_stages);
 
     let root = volumes::list().into_iter().find(|v| v.is_root);
     let facts = Facts {
@@ -177,6 +219,8 @@ pub fn run(home: &Path, base: &ScanOptions, cancel: &Arc<AtomicBool>, emit: &mut
         unused_apps: unused_apps.len(),
         unused_apps_bytes: unused_apps.iter().map(|a| a.size).sum(),
         leftovers_safe_bytes: leftovers.iter().flat_map(|g| &g.items).filter(|i| i.selected).map(|i| i.size).sum(),
+        dev_unpushed_repos: dev.as_ref().map_or(0, |d| d.repos.iter().filter(|r| r.is_unsynced()).count()),
+        dev_artifact_bytes: dev.as_ref().map_or(0, |d| d.artifacts.iter().filter(|a| a.confidence == crate::types::Confidence::Safe).map(|a| a.size).sum()),
     };
     Ok(SmartCareReport {
         disk_total: facts.disk_total,
@@ -188,6 +232,7 @@ pub fn run(home: &Path, base: &ScanOptions, cancel: &Arc<AtomicBool>, emit: &mut
         large_old,
         unused_apps,
         leftovers,
+        dev,
         duration_ms: started.elapsed().as_millis() as u64,
     })
 }
@@ -220,5 +265,21 @@ mod tests {
         assert!(recommend(&f).is_empty());
         let f = Facts { trash_bytes: 9 * GB, trash_readable: false, ..Default::default() };
         assert!(recommend(&f).is_empty());
+    }
+
+    #[test]
+    fn project_recommendations() {
+        // Nothing to say without projects, or with small regenerable folders.
+        assert!(recommend(&Facts { dev_artifact_bytes: GB, ..Default::default() }).is_empty());
+        let f = Facts { dev_unpushed_repos: 2, dev_artifact_bytes: 14 * GB, trash_bytes: 3 * GB, trash_readable: true, ..Default::default() };
+        let recs = recommend(&f);
+        let ids: Vec<_> = recs.iter().map(|r| r.id.as_str()).collect();
+        // Work that would be lost comes before any space to reclaim, whatever its size.
+        assert_eq!(ids, ["devUnpushed", "devArtifacts", "emptyTrash"]);
+        assert!(recs[0].title.contains("2 repositórios"));
+        assert!(recommend(&Facts { dev_unpushed_repos: 1, ..Default::default() })[0].title.contains("1 repositório"));
+        // Only low disk space outranks it.
+        let f = Facts { disk_total: 1000 * GB, disk_free: 10 * GB, dev_unpushed_repos: 1, ..Default::default() };
+        assert_eq!(recommend(&f).iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["lowDisk", "devUnpushed"]);
     }
 }

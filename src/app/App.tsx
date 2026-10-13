@@ -19,6 +19,7 @@ import { AdvancedCleanupPage } from "../features/cleanup/AdvancedCleanupPage";
 import { CloudPage } from "../features/cloud/CloudPage";
 import { UpdatesPage } from "../features/applications/UpdatesPage";
 import { SecurityPage } from "../features/security/SecurityPage";
+import { ProjectsPage } from "../features/dev/ProjectsPage";
 import { Onboarding, hasOnboarded } from "../features/onboarding/Onboarding";
 
 export function App() {
@@ -45,6 +46,7 @@ export function App() {
         {section === "leftovers" && <LeftoversPage />}
         {section === "performance" && <PerformancePage />}
         {section === "security" && <SecurityPage />}
+        {section === "projects" && <ProjectsPage />}
         {section === "settings" && <SettingsPage />}
       </main>
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}

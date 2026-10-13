@@ -40,6 +40,15 @@ pub struct RemovalContext {
     pub allow_system_library: bool,
 }
 
+/// What a non-removing action does to its target path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MutationKind {
+    /// The item exists and is changed or moved (quarantine source, exclusion target).
+    ExistingItem,
+    /// A new file is created at the path (it need not exist yet; its parent must).
+    CreateFile,
+}
+
 #[derive(Debug, Clone)]
 pub struct SafetyPolicy {
     protected_roots: Vec<PathBuf>,
@@ -101,13 +110,25 @@ impl SafetyPolicy {
     /// parent with symlinks resolved, plus the final component as is (a symlink is removed itself,
     /// never its target).
     pub fn check(&self, path: &Path, ctx: &RemovalContext) -> Result<PathBuf, SafetyViolation> {
+        self.validate(path, ctx, true)
+    }
+
+    /// Same rules as [`check`](Self::check) for actions that do not remove anything: creating a
+    /// marker file, moving an item into quarantine, setting a Time Machine exclusion. It never
+    /// relaxes a rule; `CreateFile` only waives the "must already exist" test, in which case the
+    /// parent folder is validated and must exist. Removal still goes through `check`.
+    pub fn check_mutation(&self, path: &Path, ctx: &RemovalContext, kind: MutationKind) -> Result<PathBuf, SafetyViolation> {
+        self.validate(path, ctx, kind == MutationKind::ExistingItem)
+    }
+
+    fn validate(&self, path: &Path, ctx: &RemovalContext, require_exists: bool) -> Result<PathBuf, SafetyViolation> {
         if !path.is_absolute() || path.components().any(|c| matches!(c, Component::ParentDir)) {
             return Err(SafetyViolation::NotAbsolute);
         }
         let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
             return Err(SafetyViolation::EssentialFolder("/".into()));
         };
-        if std::fs::symlink_metadata(path).is_err() {
+        if require_exists && std::fs::symlink_metadata(path).is_err() {
             return Err(SafetyViolation::Missing);
         }
         let parent = std::fs::canonicalize(parent).map_err(|_| SafetyViolation::Missing)?;
@@ -277,6 +298,58 @@ mod tests {
         let dotted = f.root.join("scan/docs/../docs/a.txt");
         assert_eq!(f.policy.check(&dotted, &RemovalContext::default()).unwrap_err(), SafetyViolation::NotAbsolute);
         assert_eq!(f.policy.check(&f.root.join("scan/nope"), &RemovalContext::default()).unwrap_err(), SafetyViolation::Missing);
+    }
+
+    #[test]
+    fn mutation_applies_the_same_rules_as_removal() {
+        let mut f = fixture();
+        let any = RemovalContext::default();
+        let existing = MutationKind::ExistingItem;
+        // Every rule that blocks removal blocks the mutation too.
+        for (p, expected) in [
+            (f.root.join("system/core/kernel"), "protected"),
+            (f.root.join("app-data/db.sqlite"), "own"),
+            (f.root.join("scan"), "essential"),
+        ] {
+            assert!(f.policy.check_mutation(&p, &any, existing).is_err(), "{expected}");
+            assert!(f.policy.check(&p, &any).is_err(), "{expected}");
+        }
+        assert_eq!(
+            f.policy.check_mutation(&f.root.join("scan/escape/secret.txt"), &ctx(&f.root), existing).unwrap_err(),
+            SafetyViolation::SymlinkEscape
+        );
+        assert_eq!(
+            f.policy.check_mutation(&f.root.join("scan/nope"), &any, existing).unwrap_err(),
+            SafetyViolation::Missing
+        );
+        assert_eq!(
+            f.policy.check_mutation(Path::new("docs/a.txt"), &any, MutationKind::CreateFile).unwrap_err(),
+            SafetyViolation::NotAbsolute
+        );
+        f.policy.set_ignored(vec![f.root.join("scan/docs")]);
+        assert_eq!(
+            f.policy.check_mutation(&f.root.join("scan/docs/a.txt"), &ctx(&f.root), existing).unwrap_err(),
+            SafetyViolation::Ignored
+        );
+    }
+
+    #[test]
+    fn create_file_only_waives_existence() {
+        let f = fixture();
+        let new = f.root.join("scan/docs/.metadata_never_index");
+        assert_eq!(f.policy.check(&new, &RemovalContext::default()).unwrap_err(), SafetyViolation::Missing);
+        assert_eq!(f.policy.check_mutation(&new, &ctx(&f.root), MutationKind::CreateFile).unwrap(), new);
+        // Still blocked inside protected, own or escaping locations, and when the parent is missing.
+        assert!(f.policy.check_mutation(&f.root.join("system/core/new"), &RemovalContext::default(), MutationKind::CreateFile).is_err());
+        assert!(f.policy.check_mutation(&f.root.join("app-data/new"), &RemovalContext::default(), MutationKind::CreateFile).is_err());
+        assert_eq!(
+            f.policy.check_mutation(&f.root.join("scan/escape/new"), &ctx(&f.root), MutationKind::CreateFile).unwrap_err(),
+            SafetyViolation::SymlinkEscape
+        );
+        assert_eq!(
+            f.policy.check_mutation(&f.root.join("scan/missing-dir/new"), &ctx(&f.root), MutationKind::CreateFile).unwrap_err(),
+            SafetyViolation::Missing
+        );
     }
 
     #[test]
