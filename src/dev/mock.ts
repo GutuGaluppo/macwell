@@ -432,7 +432,8 @@ const svgThumb = (i: number, v: number) => {
 };
 registerMock("image_thumbnail", ({ path }) => {
   const m = /g(\d)-(\d)/.exec(path as string);
-  return m ? svgThumb(+m[1], +m[2]) : null;
+  if (m) return svgThumb(+m[1], +m[2]);
+  return /\.(heic|png|jpe?g)$/i.test(path as string) ? svgThumb(2, 1) : null;
 });
 registerMock("photos_status", () => "notDetermined");
 registerMock("start_similar_images", ({ root, onEvent }) =>

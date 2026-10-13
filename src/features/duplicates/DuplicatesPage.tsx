@@ -7,6 +7,7 @@ import { api, errorMessage } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
 import { RowActions } from "../../components/FileTable";
+import { ImageThumb } from "../../components/ImageThumb";
 import { Modal, SelectionBar } from "../../components/ReviewDialog";
 import { WarningsNote, useHome } from "../scanner/ScannerPage";
 import { CategoryIcon } from "../../lib/categories";
@@ -98,15 +99,18 @@ function GroupCard({
               disabled={lastKept}
               onChange={(e) => toggle(f.path, e.target.checked)}
             />
-            <div className="min-w-0">
-              <div className="truncate text-[12.5px] selectable" title={f.path}>
-                {shortPath(parentFolder(f.path), home)}/<span className="font-medium">{f.name}</span>
-              </div>
-              {f.hardLinks.length > 0 && (
-                <div className="flex items-center gap-1 text-[11px] text-ink-3">
-                  <Link2 className="size-3" /> Também aparece como {f.hardLinks.map((l) => shortPath(l, home)).join(", ")} (mesmo arquivo, não ocupa espaço extra)
+            <div className="flex min-w-0 items-center gap-3">
+              {f.category === "image" && <ImageThumb path={f.path} />}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[12.5px] selectable" title={f.path}>
+                  {shortPath(parentFolder(f.path), home)}/<span className="font-medium">{f.name}</span>
                 </div>
-              )}
+                {f.hardLinks.length > 0 && (
+                  <div className="flex items-center gap-1 text-[11px] text-ink-3">
+                    <Link2 className="size-3" /> Também aparece como {f.hardLinks.map((l) => shortPath(l, home)).join(", ")} (mesmo arquivo, não ocupa espaço extra)
+                  </div>
+                )}
+              </div>
             </div>
             <div className="whitespace-nowrap text-[12px] text-ink-3" title="Criado em">{formatDate(f.createdAt)}</div>
             <RowActions entry={f} />
