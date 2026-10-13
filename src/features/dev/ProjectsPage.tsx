@@ -369,7 +369,6 @@ export function ProjectsPage() {
 
       {reviewing && (
         <ReviewDialog
-          title="Mover pastas regeneráveis para a Lixeira"
           home={home}
           items={chosen.map((a) => ({
             path: a.path,

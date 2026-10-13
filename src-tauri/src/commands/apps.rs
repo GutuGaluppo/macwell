@@ -194,7 +194,7 @@ pub async fn remove_orphans(app: AppHandle, items: Vec<RemovalItem>, backup_ack:
         }
         let policy = state.policy.read().unwrap().clone();
         let db = state.db.lock().unwrap();
-        outcomes.extend(cleanup::move_to_trash(&policy, &db, &RemovalRequest { items: accepted, scan_root: Some(library.display().to_string()) }, "trash"));
+        outcomes.extend(super::remove_items(&state, &policy, &db, &RemovalRequest { items: accepted, scan_root: Some(library.display().to_string()) }, "trash"));
         Ok(outcomes)
     })
     .await

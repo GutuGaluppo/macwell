@@ -38,6 +38,11 @@ fn trash_context() -> trash::TrashContext {
     ctx
 }
 
+/// Sends one path to the Trash. Used for what has already been validated elsewhere.
+pub fn send_to_trash(path: &Path) -> Result<(), String> {
+    trash_context().delete(path).map_err(|e| e.to_string())
+}
+
 /// Moves each item to the Trash after validating it. Items are independent: one failure does not
 /// stop the others.
 pub fn move_to_trash(policy: &SafetyPolicy, db: &Db, request: &RemovalRequest, action: &str) -> Vec<OperationOutcome> {

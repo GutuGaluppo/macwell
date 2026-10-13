@@ -12,7 +12,7 @@ use tauri::AppHandle;
 use super::scan::{record, scan_options, validate_root, ScanResult};
 use super::{start_job, JobEvent, JobOutcome};
 use crate::cleanup::downloads::DownloadItem;
-use crate::cleanup::{self, trash_bin, RemovalRequest};
+use crate::cleanup::{trash_bin, RemovalRequest};
 use crate::db::now_ms;
 use crate::error::{AppError, AppResult};
 use crate::filesystem::scanner::{scan, ScanStats};
@@ -173,7 +173,7 @@ pub async fn move_to_trash(app: AppHandle, request: RemovalRequest) -> AppResult
         let policy = state.policy.read().unwrap().clone();
         let outcomes = {
             let db = state.db.lock().unwrap();
-            cleanup::move_to_trash(&policy, &db, &request, "trash")
+            super::remove_items(&state, &policy, &db, &request, "trash")
         };
         let removed: Vec<PathBuf> = outcomes.iter().filter(|o| o.ok).map(|o| PathBuf::from(&o.path)).collect();
         state.forget_paths(&removed);

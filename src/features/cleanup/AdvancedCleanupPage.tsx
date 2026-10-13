@@ -193,7 +193,7 @@ export function AdvancedCleanupPage() {
     <div className="h-full overflow-y-auto">
       <PageHeader
         title="Limpeza avançada"
-        subtitle="Regras para caches, registros, ferramentas de desenvolvimento, navegadores e Mail. Tudo vai para a Lixeira; apps abertos bloqueiam a limpeza dos próprios dados."
+        subtitle="Regras para caches, registros, ferramentas de desenvolvimento, navegadores e Mail. Tudo vai para a Lixeira (ou para a Quarentena, se você escolheu em Ajustes); apps abertos bloqueiam a limpeza dos próprios dados."
         actions={
           <>
             <Button variant="ghost" icon={<RefreshCw className="size-3.5" />} busy={isFetching} onClick={() => refetch()}>

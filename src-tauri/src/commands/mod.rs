@@ -10,6 +10,7 @@ pub mod duplicates;
 pub mod files;
 pub mod health;
 pub mod images;
+pub mod quarantine;
 pub mod scan;
 pub mod security;
 pub mod smart_care;
@@ -84,4 +85,13 @@ where
 #[tauri::command]
 pub fn cancel_job(state: tauri::State<'_, AppState>, job_id: String) -> bool {
     state.jobs.cancel(&job_id)
+}
+
+/// Moves reviewed items to the Trash or into quarantine, whichever the user chose in Settings (the
+/// Trash unless they changed it). Every batch removal goes through here, so the choice is made in
+/// one place and the safety policy applies the same way to both.
+pub fn remove_items(state: &AppState, policy: &crate::filesystem::safety::SafetyPolicy, db: &crate::db::Db, request: &crate::cleanup::RemovalRequest, action: &str) -> Vec<crate::types::OperationOutcome> {
+    let mode = crate::quarantine::RemovalMode::from_setting(db.setting(crate::quarantine::MODE_SETTING).ok().flatten().as_deref());
+    let env = crate::quarantine::Env { data_root: state.paths.data_dir.join("Quarantine"), data_dir: state.paths.data_dir.clone(), volumes: &crate::quarantine::RealVolumes };
+    crate::quarantine::remove(mode, policy, db, request, action, &env)
 }

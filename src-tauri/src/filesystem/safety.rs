@@ -40,6 +40,13 @@ pub struct RemovalContext {
     pub allow_system_library: bool,
 }
 
+/// Name of the quarantine folder kept at the root of a volume. Nothing else may touch what is inside it.
+pub const QUARANTINE_DIR: &str = ".OrganizeMyMac-Quarantine";
+
+fn in_quarantine(path: &Path) -> bool {
+    path.components().any(|c| c.as_os_str() == QUARANTINE_DIR)
+}
+
 /// What a non-removing action does to its target path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MutationKind {
@@ -158,7 +165,7 @@ impl SafetyPolicy {
             if !ctx.allow_system_library && candidate.starts_with(&self.system_library) {
                 return Err(SafetyViolation::ProtectedLocation(self.system_library.display().to_string()));
             }
-            if self.own_paths.iter().any(|o| candidate.starts_with(o) || o.starts_with(candidate)) {
+            if self.own_paths.iter().any(|o| candidate.starts_with(o) || o.starts_with(candidate)) || in_quarantine(candidate) {
                 return Err(SafetyViolation::OwnFiles);
             }
             if self.is_ignored(candidate) {
@@ -350,6 +357,25 @@ mod tests {
             f.policy.check_mutation(&f.root.join("scan/missing-dir/new"), &ctx(&f.root), MutationKind::CreateFile).unwrap_err(),
             SafetyViolation::Missing
         );
+    }
+
+    #[test]
+    fn a_quarantine_folder_on_any_volume_is_the_apps_own() {
+        let f = fixture();
+        let q = f.root.join("scan/docs").join(QUARANTINE_DIR);
+        fs::create_dir_all(q.join("2024-05-06")).unwrap();
+        fs::write(q.join("2024-05-06/abc-file.txt"), b"x").unwrap();
+        let ctx = RemovalContext { scan_root: Some(f.root.join("scan")), allow_system_library: false };
+        // Neither the folder, nor a dated folder, nor anything inside can be removed or modified by other flows.
+        for p in [q.clone(), q.join("2024-05-06"), q.join("2024-05-06/abc-file.txt")] {
+            assert_eq!(f.policy.check(&p, &ctx).unwrap_err(), SafetyViolation::OwnFiles, "{p:?}");
+            assert_eq!(f.policy.check_mutation(&p, &ctx, MutationKind::ExistingItem).unwrap_err(), SafetyViolation::OwnFiles);
+        }
+        // Creating something there is refused too; a folder merely named similarly is fine.
+        assert!(f.policy.check_mutation(&q.join("new"), &ctx, MutationKind::CreateFile).is_err());
+        let similar = f.root.join("scan/docs/OrganizeMyMac-Quarantine-notes.txt");
+        fs::write(&similar, b"x").unwrap();
+        assert!(f.policy.check(&similar, &ctx).is_ok());
     }
 
     #[test]

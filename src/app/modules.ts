@@ -43,6 +43,7 @@ export const modules: Module[] = [
       { id: "downloads", label: "Downloads", job: "downloads" },
       { id: "cloud", label: "Nuvem", job: "cloud" },
       { id: "trash", label: "Lixeira" },
+      { id: "quarantine", label: "Quarentena" },
     ],
   },
   {

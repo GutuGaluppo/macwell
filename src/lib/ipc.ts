@@ -18,6 +18,8 @@ import type {
   UndoneExclusion,
   PushPlan,
   PushResult,
+  QuarantineList,
+  RemovalMode,
   SecretScan,
   SnapshotPlan,
   SnapshotRecord,
@@ -120,6 +122,13 @@ export const api = {
   applyTmExclusions: (items: ArtifactRemoval[]) => invoke<OperationOutcome[]>("apply_tm_exclusions", { items }),
   listTmExclusions: () => invoke<TmExclusion[]>("list_tm_exclusions"),
   undoTmExclusions: (paths: string[]) => invoke<UndoneExclusion[]>("undo_tm_exclusions", { paths }),
+  getRemovalMode: () => invoke<RemovalMode>("get_removal_mode"),
+  setRemovalMode: (mode: RemovalMode) => invoke<void>("set_removal_mode", { mode }),
+  listQuarantine: () => invoke<QuarantineList>("list_quarantine"),
+  /** Needs the user's confirmation. Never overwrites: `to` picks another folder when the original place is taken. */
+  restoreQuarantine: (ids: string[], to?: string) => invoke<OperationOutcome[]>("restore_quarantine", { ids, to, confirmed: true }),
+  /** Sends the items to the Trash (not a permanent deletion). Needs the user's confirmation. */
+  emptyQuarantine: (ids: string[]) => invoke<OperationOutcome[]>("empty_quarantine", { ids, confirmed: true }),
   setBackupStaleDays: (days: number) => invoke<void>("set_backup_stale_days", { days }),
   moveDuplicatesToTrash: (
     groups: { all: string[]; remove: { path: string; size: number; modifiedAt: number | null }[] }[],

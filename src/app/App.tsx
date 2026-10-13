@@ -8,6 +8,7 @@ import { OverviewPage } from "../features/dashboard/OverviewPage";
 import { LargeFilesPage } from "../features/storage/LargeFilesPage";
 import { DownloadsPage } from "../features/storage/DownloadsPage";
 import { TrashPage } from "../features/storage/TrashPage";
+import { QuarantinePage } from "../features/quarantine/QuarantinePage";
 import { DuplicatesPage } from "../features/duplicates/DuplicatesPage";
 import { SpaceMapPage } from "../features/spacemap/SpaceMapPage";
 import { AppsPage } from "../features/applications/AppsPage";
@@ -44,6 +45,7 @@ export function App() {
         {section === "cloud" && <CloudPage />}
         {section === "updates" && <UpdatesPage />}
         {section === "trash" && <TrashPage />}
+        {section === "quarantine" && <QuarantinePage />}
         {section === "apps" && <AppsPage />}
         {section === "leftovers" && <LeftoversPage />}
         {section === "performance" && <PerformancePage />}

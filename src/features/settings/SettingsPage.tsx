@@ -6,7 +6,8 @@ import { Button, Card, PageHeader } from "../../components/ui";
 import { FullDiskAccessRow } from "../onboarding/Onboarding";
 import { formatBytes, formatCount, formatDateTime, shortPath } from "../../lib/format";
 import { useHome } from "../scanner/ScannerPage";
-import type { MenuBarSettings } from "../../types";
+import { useRemovalMode } from "../../lib/removalMode";
+import type { MenuBarSettings, RemovalMode } from "../../types";
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -14,6 +15,36 @@ function Section({ title, description, children }: { title: string; description?
       <h2 className="text-[13px] font-semibold">{title}</h2>
       {description && <p className="mt-0.5 mb-2.5 text-[12px] text-ink-3">{description}</p>}
       <Card className="p-4">{children}</Card>
+    </div>
+  );
+}
+
+function RemovalModeSection() {
+  const qc = useQueryClient();
+  const { mode } = useRemovalMode();
+  const choose = async (next: RemovalMode) => {
+    await api.setRemovalMode(next);
+    qc.invalidateQueries({ queryKey: ["removalMode"] });
+  };
+  const options: { id: RemovalMode; title: string; text: string }[] = [
+    { id: "trash", title: "Lixeira (padrão)", text: "Os itens vão para a Lixeira do macOS e saem de vez só quando você a esvazia." },
+    {
+      id: "quarantine",
+      title: "Quarentena",
+      text: "Os itens são movidos (sem cópia) para uma pasta com a data, no mesmo disco, com um registro em CSV. Continuam ocupando espaço até você enviá-los à Lixeira. Itens em outro disco ficam de fora e pedem a Lixeira.",
+    },
+  ];
+  return (
+    <div className="space-y-2" role="radiogroup" aria-label="Destino dos itens removidos">
+      {options.map((o) => (
+        <label key={o.id} className="flex cursor-pointer items-start gap-3 rounded-lg px-1 py-1.5 hover:bg-surface-2">
+          <input type="radio" name="removal-mode" className="mt-1 accent-[var(--accent)]" checked={mode === o.id} onChange={() => choose(o.id)} />
+          <span>
+            <span className="block text-[13px] font-medium">{o.title}</span>
+            <span className="block text-[12px] text-ink-3">{o.text}</span>
+          </span>
+        </label>
+      ))}
     </div>
   );
 }
@@ -144,6 +175,9 @@ export function SettingsPage() {
       <div className="max-w-3xl space-y-6 px-8 pb-10">
         <Section title="Permissões" description="O app funciona sem Acesso Total ao Disco, mas não enxerga pastas protegidas pelo macOS.">
           <FullDiskAccessRow compact />
+        </Section>
+        <Section title="Ao remover itens" description="Vale para a limpeza em lote e para as revisões. Desinstalar um app continua indo para a Lixeira.">
+          <RemovalModeSection />
         </Section>
         <Section title="Barra de menus">
           <MenuBarSection />

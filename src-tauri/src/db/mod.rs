@@ -167,6 +167,20 @@ pub struct TmExclusionRecord {
     pub kind: Option<String>,
 }
 
+/// An item currently in quarantine.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuarantineRecord {
+    pub id: String,
+    pub batch_id: String,
+    /// The dated folder holding the item and `quarantine.csv`.
+    pub batch_dir: String,
+    pub origin: String,
+    pub dest: String,
+    pub size: u64,
+    pub quarantined_at: i64,
+}
+
 pub fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
 }
@@ -311,6 +325,51 @@ impl Db {
 
     pub fn remove_dev_root(&self, path: &str) -> AppResult<()> {
         self.conn.execute("DELETE FROM dev_roots WHERE path = ?1", params![path])?;
+        Ok(())
+    }
+
+    pub fn insert_quarantine_batch(&self, id: &str, dir: &str) -> AppResult<()> {
+        self.conn.execute("INSERT INTO quarantine_batches (id, dir, created_at) VALUES (?1, ?2, ?3)", params![id, dir, now_ms()])?;
+        Ok(())
+    }
+
+    pub fn insert_quarantine_item(&self, id: &str, batch_id: &str, origin: &str, dest: &str, size: u64) -> AppResult<()> {
+        self.conn.execute(
+            "INSERT INTO quarantine_items (id, batch_id, origin, dest, size, quarantined_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, batch_id, origin, dest, size as i64, now_ms()],
+        )?;
+        Ok(())
+    }
+
+    fn quarantine_query(&self, filter: &str, args: &[&dyn rusqlite::ToSql]) -> AppResult<Vec<QuarantineRecord>> {
+        let sql = format!(
+            "SELECT i.id, i.batch_id, b.dir, i.origin, i.dest, i.size, i.quarantined_at
+             FROM quarantine_items i JOIN quarantine_batches b ON b.id = i.batch_id
+             WHERE i.restored_at IS NULL AND i.emptied_at IS NULL {filter} ORDER BY i.quarantined_at DESC, i.origin"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(args, |r| {
+            Ok(QuarantineRecord { id: r.get(0)?, batch_id: r.get(1)?, batch_dir: r.get(2)?, origin: r.get(3)?, dest: r.get(4)?, size: r.get::<_, i64>(5)? as u64, quarantined_at: r.get(6)? })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Items that are still in quarantine (not restored, not sent to the Trash).
+    pub fn quarantine_items(&self) -> AppResult<Vec<QuarantineRecord>> {
+        self.quarantine_query("", &[])
+    }
+
+    pub fn quarantine_item(&self, id: &str) -> AppResult<Option<QuarantineRecord>> {
+        Ok(self.quarantine_query("AND i.id = ?1", &[&id])?.into_iter().next())
+    }
+
+    pub fn mark_quarantine_restored(&self, id: &str) -> AppResult<()> {
+        self.conn.execute("UPDATE quarantine_items SET restored_at = ?2 WHERE id = ?1", params![id, now_ms()])?;
+        Ok(())
+    }
+
+    pub fn mark_quarantine_emptied(&self, id: &str) -> AppResult<()> {
+        self.conn.execute("UPDATE quarantine_items SET emptied_at = ?2 WHERE id = ?1", params![id, now_ms()])?;
         Ok(())
     }
 
@@ -519,6 +578,24 @@ mod tests {
         // Undoing something the app never added changes nothing.
         db.mark_tm_exclusion_removed("/somewhere/else").unwrap();
         assert_eq!(db.tm_exclusions().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn quarantine_items_move_through_their_states() {
+        let db = Db::open_in_memory().unwrap();
+        db.insert_quarantine_batch("b1", "/q/2024-05-06").unwrap();
+        db.insert_quarantine_item("i1", "b1", "/Users/me/a.txt", "/q/2024-05-06/i1-a.txt", 10).unwrap();
+        db.insert_quarantine_item("i2", "b1", "/Users/me/b.txt", "/q/2024-05-06/i2-b.txt", 20).unwrap();
+        db.insert_quarantine_item("i3", "b1", "/Users/me/c.txt", "/q/2024-05-06/i3-c.txt", 30).unwrap();
+        assert_eq!(db.quarantine_items().unwrap().len(), 3);
+        let one = db.quarantine_item("i2").unwrap().unwrap();
+        assert_eq!((one.origin.as_str(), one.batch_dir.as_str(), one.size), ("/Users/me/b.txt", "/q/2024-05-06", 20));
+        db.mark_quarantine_restored("i1").unwrap();
+        db.mark_quarantine_emptied("i2").unwrap();
+        let left = db.quarantine_items().unwrap();
+        assert_eq!(left.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["i3"]);
+        assert!(db.quarantine_item("i1").unwrap().is_none() && db.quarantine_item("i2").unwrap().is_none());
+        assert!(db.quarantine_item("nope").unwrap().is_none());
     }
 
     #[test]

@@ -4,6 +4,7 @@ import { CheckCircle2, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { Badge, Button } from "./ui";
 import { api, errorMessage } from "../lib/ipc";
 import { formatBytes, formatCount, shortPath } from "../lib/format";
+import { useRemovalMode } from "../lib/removalMode";
 import type { Confidence, OperationOutcome } from "../types";
 
 export type ReviewItem = { path: string; size: number; label?: ReactNode; confidence?: Confidence };
@@ -32,7 +33,7 @@ export function ReviewDialog({
   items,
   scanRoot,
   home,
-  title = "Mover para a Lixeira",
+  title,
   execute,
   onClose,
   onDone,
@@ -47,6 +48,7 @@ export function ReviewDialog({
   onDone: (outcomes: OperationOutcome[]) => void;
 }) {
   const qc = useQueryClient();
+  const { quarantine, destination } = useRemovalMode();
   const [busy, setBusy] = useState(false);
   const [outcomes, setOutcomes] = useState<OperationOutcome[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,11 +80,12 @@ export function ReviewDialog({
         <div className="p-6">
           <div className="flex items-center gap-2 text-[16px] font-semibold">
             <CheckCircle2 className="size-5 text-safe" />
-            {formatCount(ok.length)} {ok.length === 1 ? "item movido" : "itens movidos"} para a Lixeira
+            {formatCount(ok.length)} {ok.length === 1 ? "item movido" : "itens movidos"} para {destination}
           </div>
           <p className="mt-1 text-ink-2">
-            {formatBytes(ok.reduce((s, o) => s + o.size, 0))} serão liberados quando a Lixeira for esvaziada. Até lá, dá para recuperar tudo pelo
-            Finder.
+            {quarantine
+              ? `${formatBytes(ok.reduce((s, o) => s + o.size, 0))} continuam no disco, guardados na Quarentena. Abra Quarentena para restaurar ou enviar à Lixeira.`
+              : `${formatBytes(ok.reduce((s, o) => s + o.size, 0))} serão liberados quando a Lixeira for esvaziada. Até lá, dá para recuperar tudo pelo Finder.`}
           </p>
           {failed.length > 0 && (
             <div className="mt-4 rounded-lg border border-danger/30 bg-danger-soft p-3">
@@ -111,7 +114,7 @@ export function ReviewDialog({
   return (
     <Modal onClose={busy ? undefined : onClose}>
       <div className="border-b border-line px-6 pt-5 pb-4">
-        <h2 className="text-[16px] font-semibold">{title}</h2>
+        <h2 className="text-[16px] font-semibold">{title ?? `Mover para ${destination}`}</h2>
         <p className="mt-1 text-ink-2">
           {formatCount(items.length)} {items.length === 1 ? "item" : "itens"} · <span className="font-medium text-ink">{formatBytes(total)}</span>. Confira os
           caminhos antes de continuar.
@@ -134,13 +137,14 @@ export function ReviewDialog({
       {error && <div className="mx-6 mb-2 rounded-lg bg-danger-soft px-3 py-2 text-[12px] text-danger">{error}</div>}
       <div className="flex items-center gap-3 border-t border-line px-6 py-3">
         <div className="flex flex-1 items-center gap-1.5 text-[11.5px] text-ink-3">
-          <ShieldCheck className="size-3.5" /> Vai para a Lixeira e pode ser recuperado. Pastas do sistema são sempre bloqueadas.
+          <ShieldCheck className="size-3.5" />{" "}
+          {quarantine ? "Fica na Quarentena, no mesmo disco, e pode ser restaurado." : "Vai para a Lixeira e pode ser recuperado."} Pastas do sistema são sempre bloqueadas.
         </div>
         <Button onClick={onClose} disabled={busy}>
           Cancelar
         </Button>
         <Button variant="danger" busy={busy} icon={<Trash2 className="size-3.5" />} onClick={run}>
-          Mover {formatBytes(total)} para a Lixeira
+          Mover {formatBytes(total)} para {destination}
         </Button>
       </div>
     </Modal>
@@ -149,6 +153,7 @@ export function ReviewDialog({
 
 /** Sticky bar with the selection total and the review button. */
 export function SelectionBar({ count, bytes, onReview, extra }: { count: number; bytes: number; onReview: () => void; extra?: ReactNode }) {
+  const { destination } = useRemovalMode();
   return (
     <div className="sticky bottom-0 z-10 -mx-8 mt-4 flex items-center gap-3 glass-bar px-8 py-3">
       <div className="flex-1 text-[12.5px] text-ink-2">
@@ -163,7 +168,7 @@ export function SelectionBar({ count, bytes, onReview, extra }: { count: number;
       </div>
       {extra}
       <Button variant="primary" disabled={!count} onClick={onReview} icon={<Trash2 className="size-3.5" />}>
-        Revisar e mover para a Lixeira…
+        Revisar e mover para {destination}…
       </Button>
     </div>
   );

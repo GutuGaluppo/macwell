@@ -6,7 +6,7 @@ use tauri::AppHandle;
 
 use super::scan::{record, scan_options, validate_root, ScanResult};
 use super::{start_job, JobEvent, JobOutcome};
-use crate::cleanup::{self, RemovalItem, RemovalRequest};
+use crate::cleanup::{RemovalItem, RemovalRequest};
 use crate::db::now_ms;
 use crate::duplicates::{unchanged, validate_group, DuplicateCandidates, DuplicateGroup, DuplicateSearch, GroupRemoval, HashStats};
 use crate::backup::gate::BackupAck;
@@ -90,7 +90,7 @@ pub async fn move_duplicates_to_trash(app: AppHandle, groups: Vec<GroupRemoval>,
         let policy = state.policy.read().unwrap().clone();
         let moved = {
             let db = state.db.lock().unwrap();
-            cleanup::move_to_trash(&policy, &db, &RemovalRequest { items, scan_root }, "trash")
+            super::remove_items(&state, &policy, &db, &RemovalRequest { items, scan_root }, "trash")
         };
         let removed: Vec<PathBuf> = moved.iter().filter(|o| o.ok).map(|o| PathBuf::from(&o.path)).collect();
         state.forget_paths(&removed);

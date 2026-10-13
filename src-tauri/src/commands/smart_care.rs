@@ -7,7 +7,7 @@ use tauri::{AppHandle, Manager};
 use super::scan::scan_options;
 use super::{start_job, JobEvent, JobOutcome};
 use crate::applications::leftovers::{installed_bundle_ids, still_orphan};
-use crate::cleanup::{self, trash_bin, RemovalItem, RemovalRequest};
+use crate::cleanup::{trash_bin, RemovalItem, RemovalRequest};
 use crate::dev::removal::ArtifactRemoval;
 use crate::duplicates::{unchanged, validate_group, GroupRemoval};
 use crate::backup::gate::BackupAck;
@@ -94,7 +94,7 @@ pub async fn run_smart_care(app: AppHandle, plan: CarePlan, backup_ack: Option<B
             }
         }
         let db = state.db.lock().unwrap();
-        let moved = cleanup::move_to_trash(&policy, &db, &RemovalRequest { items: files, scan_root: Some(home.display().to_string()) }, "trash");
+        let moved = super::remove_items(&state, &policy, &db, &RemovalRequest { items: files, scan_root: Some(home.display().to_string()) }, "trash");
         drop(db);
         let removed: Vec<PathBuf> = moved.iter().filter(|o| o.ok).map(|o| PathBuf::from(&o.path)).collect();
         state.forget_paths(&removed);

@@ -4,6 +4,7 @@ import { AlertTriangle, AppWindow, Boxes, Check, ChevronDown, ChevronRight, Copy
 import { api, errorMessage } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { withBackupAck } from "../../stores/backupGate";
+import { useRemovalMode } from "../../lib/removalMode";
 import { useNav } from "../../stores/nav";
 import { Badge, Button, Card, ErrorNote } from "../../components/ui";
 import { GlassTile, RoundAction, TileButton } from "../../components/GlassTile";
@@ -107,6 +108,7 @@ type Focus = "downloads" | "clutter" | "apps" | "dev";
 
 export function SmartCarePage() {
   const home = useHome();
+  const { quarantine, destination } = useRemovalMode();
   const qc = useQueryClient();
   const go = useNav((s) => s.go);
   const job = useJob<SmartCareReport | null>(MODULE);
@@ -501,7 +503,7 @@ export function SmartCarePage() {
               )}
               {chosenCount > 0 && (
                 <li>
-                  Mover {formatCount(chosenCount)} itens para a Lixeira ({formatBytes(chosenBytes - (emptyTrash ? r.trash.bytes : 0))}); dá para recuperar pelo Finder
+                  Mover {formatCount(chosenCount)} itens para {destination} ({formatBytes(chosenBytes - (emptyTrash ? r.trash.bytes : 0))}); {quarantine ? "ficam no disco e dá para restaurar em Quarentena" : "dá para recuperar pelo Finder"}
                 </li>
               )}
             </ul>

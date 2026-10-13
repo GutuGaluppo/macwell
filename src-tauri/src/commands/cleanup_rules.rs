@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 use crate::cleanup::rules::{builtin_rules, custom_rule, evaluate, running_apps, still_allowed, valid_custom_folder, CleanupRule, Risk, RuleResult};
-use crate::cleanup::{self, RemovalItem, RemovalRequest};
+use crate::cleanup::{RemovalItem, RemovalRequest};
 use crate::backup::gate::BackupAck;
 use crate::commands::backup::require_backup_ack;
 use crate::error::{AppError, AppResult};
@@ -120,7 +120,7 @@ pub async fn run_cleanup_rules(app: AppHandle, items: Vec<RuleRemoval>, backup_a
         }
         let policy = state.policy.read().unwrap().clone();
         let db = state.db.lock().unwrap();
-        outcomes.extend(cleanup::move_to_trash(&policy, &db, &RemovalRequest { items: accepted, scan_root: Some(home.display().to_string()) }, "trash"));
+        outcomes.extend(super::remove_items(&state, &policy, &db, &RemovalRequest { items: accepted, scan_root: Some(home.display().to_string()) }, "trash"));
         Ok(outcomes)
     })
     .await

@@ -11,7 +11,7 @@ use tauri::{AppHandle, Manager};
 use super::{start_job, JobEvent, JobOutcome};
 use crate::db::{Db, DevRoot, SnapshotRecord};
 use crate::backup::gate::BackupAck;
-use crate::cleanup::{self, RemovalRequest};
+use crate::cleanup::RemovalRequest;
 use crate::commands::backup::require_backup_ack;
 use crate::dev::artifacts::builtin_rules;
 use crate::dev::git::Git;
@@ -202,7 +202,7 @@ pub async fn push_snapshot(app: AppHandle, repo: String, ref_name: String, remot
 /// Every item is re-derived first (see `dev::removal`) and then goes through `move_to_trash`, so the
 /// safety policy, the user's ignore list and the operation log all apply.
 pub fn remove_artifacts(state: &AppState, items: Vec<ArtifactRemoval>) -> AppResult<Vec<OperationOutcome>> {
-    remove_artifacts_with(state, items, &|policy, db, request| cleanup::move_to_trash(policy, db, request, "trash"))
+    remove_artifacts_with(state, items, &|policy, db, request| super::remove_items(state, policy, db, request, "trash"))
 }
 
 /// The same, with the mover injected so tests can run without touching the real Trash.

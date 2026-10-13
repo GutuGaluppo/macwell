@@ -13,6 +13,7 @@ pub mod images;
 pub mod jobs;
 pub mod menubar;
 pub mod processes;
+pub mod quarantine;
 pub mod security;
 pub mod smart_care;
 pub mod state;
@@ -87,6 +88,11 @@ pub fn run() {
         .setup(setup)
         .invoke_handler(tauri::generate_handler![
             commands::cancel_job,
+            commands::quarantine::get_removal_mode,
+            commands::quarantine::set_removal_mode,
+            commands::quarantine::list_quarantine,
+            commands::quarantine::restore_quarantine,
+            commands::quarantine::empty_quarantine,
             commands::backup::get_backup_state,
             commands::backup::get_backup_gate,
             commands::backup::preview_tm_exclusions,

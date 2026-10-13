@@ -2,7 +2,7 @@
 // answered with fictitious data so screens can be designed and checked without the Rust core.
 // Never bundled into the app (imported only when `import.meta.env.DEV` and outside Tauri).
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { ExclusionPreview, TmExclusion, BackupAck, BackupGate, BackupState, DevArtifact, DevReport, DevRoot, PushPlan, RemoteView, RepoReport, SecretFinding, SnapshotPlan, SnapshotRecord, Blocker, SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
+import type { QuarantineList, QuarantineView, RemovalMode, ExclusionPreview, TmExclusion, BackupAck, BackupGate, BackupState, DevArtifact, DevReport, DevRoot, PushPlan, RemoteView, RepoReport, SecretFinding, SnapshotPlan, SnapshotRecord, Blocker, SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
 
 const HOME = "/Users/demo";
 const now = Date.now();
@@ -797,6 +797,42 @@ registerMock("undo_tm_exclusions", ({ paths }) =>
     return { path, ok: had, gone: false, stillExcluded: false, error: had ? null : "esta exclusão não foi feita pelo OrganizeMyMac" };
   }),
 );
+
+// ---- Quarantine (M14)
+let removalMode: RemovalMode = "trash";
+const quarantined: QuarantineView[] = [
+  { id: "a1b2c3d4", origin: `${HOME}/Downloads/Figma-126.1.dmg`, dest: `${HOME}/Library/Application Support/dev.galuppo.OrganizeMyMac/Quarantine/2026-10-12/a1b2c3d4-Figma-126.1.dmg`, size: 540e6, quarantinedAt: now - DAY, present: true, logPath: `${HOME}/Library/Application Support/dev.galuppo.OrganizeMyMac/Quarantine/2026-10-12/quarantine.csv` },
+  { id: "e5f6a7b8", origin: `${HOME}/Projects/Relay/apps/mobile/ios/Pods`, dest: `${HOME}/Library/Application Support/dev.galuppo.OrganizeMyMac/Quarantine/2026-10-12/e5f6a7b8-Pods`, size: 1.2e9, quarantinedAt: now - DAY, present: true, logPath: `${HOME}/Library/Application Support/dev.galuppo.OrganizeMyMac/Quarantine/2026-10-12/quarantine.csv` },
+  { id: "c9d0e1f2", origin: `${HOME}/Documents/Old/contrato-2019.pdf`, dest: `${HOME}/Library/Application Support/dev.galuppo.OrganizeMyMac/Quarantine/2026-10-05/c9d0e1f2-contrato-2019.pdf`, size: 4.1e6, quarantinedAt: now - 8 * DAY, present: false, logPath: `${HOME}/Library/Application Support/dev.galuppo.OrganizeMyMac/Quarantine/2026-10-05/quarantine.csv` },
+];
+registerMock("get_removal_mode", () => removalMode);
+registerMock("set_removal_mode", ({ mode }) => {
+  removalMode = mode as RemovalMode;
+  return null;
+});
+registerMock("list_quarantine", (): QuarantineList => ({ items: [...quarantined], totalBytes: quarantined.filter((q) => q.present).reduce((n, q) => n + q.size, 0) }));
+registerMock("restore_quarantine", ({ ids, to, confirmed }) => {
+  if (!confirmed) return Promise.reject({ kind: "invalid", message: "restaurar precisa ser confirmado" });
+  return (ids as string[]).map((id) => {
+    const i = quarantined.findIndex((q) => q.id === id);
+    const q = quarantined[i];
+    if (!q) return { path: id, size: 0, ok: false, error: "este item não está na quarentena" };
+    // One item always finds its place taken, so the "other folder" path can be tried.
+    if (!to && q.origin.endsWith("Figma-126.1.dmg")) return { path: q.origin, size: q.size, ok: false, error: `já existe algo em ${q.origin}: escolha outra pasta` };
+    quarantined.splice(i, 1);
+    return { path: to ? `${to}/${q.origin.split("/").pop()}` : q.origin, size: q.size, ok: true, error: null };
+  });
+});
+registerMock("empty_quarantine", ({ ids, confirmed }) => {
+  if (!confirmed) return Promise.reject({ kind: "invalid", message: "esvaziar a quarentena precisa ser confirmado" });
+  return (ids as string[]).map((id) => {
+    const i = quarantined.findIndex((q) => q.id === id);
+    const q = quarantined[i];
+    if (!q) return { path: id, size: 0, ok: false, error: "este item não está na quarentena" };
+    quarantined.splice(i, 1);
+    return { path: q.dest, size: q.size, ok: true, error: null };
+  });
+});
 
 export function install() {
   mockIPC((cmd, args) => {

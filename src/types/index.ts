@@ -601,3 +601,9 @@ export type ListedExclusionState = "active" | "lost" | "missing" | "unknown";
 export type TmExclusion = { path: string; addedAt: number; kind: string | null; state: ListedExclusionState };
 export type UndoneExclusion = { path: string; ok: boolean; gone: boolean; stillExcluded: boolean; error: string | null };
 
+// ---- Quarantine (M14). Mirrors src-tauri/src/quarantine and commands/quarantine.rs.
+
+export type RemovalMode = "trash" | "quarantine";
+export type QuarantineView = { id: string; origin: string; dest: string; size: number; quarantinedAt: number; present: boolean; logPath: string };
+export type QuarantineList = { items: QuarantineView[]; totalBytes: number };
+
