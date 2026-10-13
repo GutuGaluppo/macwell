@@ -17,8 +17,8 @@ const confidenceBadge: Record<Confidence, ReactNode> = {
 
 export function Modal({ children, onClose, width = 620 }: { children: ReactNode; onClose?: () => void; width?: number }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/25 p-6 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className="flex max-h-[86vh] w-full flex-col glass-strong rounded-2xl" style={{ maxWidth: width }}>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-6 backdrop-blur-[3px]" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div className="flex max-h-[86vh] w-full flex-col glass-strong modal-legible rounded-2xl" style={{ maxWidth: width }}>
         {children}
       </div>
     </div>

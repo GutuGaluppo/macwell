@@ -294,8 +294,8 @@ export function SmartCarePage() {
         {error && <ErrorNote>{error}</ErrorNote>}
 
         {(job.status === "idle" || job.status === "cancelled" || (job.status === "done" && !r)) && (
-          <div className="flex flex-col items-center pt-6 pb-10">
-            <img src={smartCare.icon} alt="" draggable={false} className="size-[180px] object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
+          <div className="flex min-h-[calc(100vh-190px)] flex-col items-center justify-center pb-10">
+            <img src={smartCare.icon} alt="" draggable={false} className="size-[min(320px,38vh)] object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
             <div className="mt-8">
               <RoundAction onClick={() => start(MODULE, "start_smart_care", {})}>Analisar</RoundAction>
             </div>
@@ -494,8 +494,8 @@ export function SmartCarePage() {
       {confirm && r && (
         <Modal onClose={busy ? undefined : () => setConfirm(false)} width={480}>
           <div className="p-6">
-            <h2 className="text-[16px] font-semibold">Confirmar limpeza</h2>
-            <ul className="mt-3 space-y-1 text-[12.5px] text-ink-2">
+            <h2 className="text-[18px] font-semibold">Confirmar limpeza</h2>
+            <ul className="mt-4 space-y-2 text-[14.5px] text-ink-2">
               {emptyTrash && (
                 <li className="text-danger">
                   Apagar de vez {formatCount(r.trash.items.length)} itens da Lixeira ({formatBytes(r.trash.bytes)})
@@ -508,12 +508,12 @@ export function SmartCarePage() {
               )}
             </ul>
             {unsyncedRepos.length > 0 && rows?.artifacts.some((a) => selected.has(a.key)) && (
-              <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--review)_12%,transparent)] px-3 py-2 text-[12px] text-review">
+              <p className="mt-3 rounded-lg bg-[color-mix(in_srgb,var(--review)_12%,transparent)] px-3 py-2 text-[13.5px] text-review">
                 {formatCount(unsyncedRepos.length)} {unsyncedRepos.length === 1 ? "repositório tem" : "repositórios têm"} trabalho não enviado. Remover pastas regeneráveis não toca nesses
                 arquivos, mas vale fazer um snapshot em Projetos antes.
               </p>
             )}
-            <p className="mt-3 text-[11.5px] text-ink-3">Cada item é validado de novo antes: pastas do sistema, arquivos alterados desde a análise e a última cópia de um duplicado são sempre preservados.</p>
+            <p className="mt-4 text-[13px] text-ink-3">Cada item é validado de novo antes: pastas do sistema, arquivos alterados desde a análise e a última cópia de um duplicado são sempre preservados.</p>
           </div>
           <div className="flex justify-end gap-2 border-t border-line px-6 py-3">
             <Button onClick={() => setConfirm(false)} disabled={busy}>
@@ -529,7 +529,7 @@ export function SmartCarePage() {
       {outcomes && (
         <Modal onClose={() => { setOutcomes(null); start(MODULE, "start_smart_care", {}); }} width={480}>
           <div className="p-6">
-            <h2 className="flex items-center gap-2 text-[16px] font-semibold">
+            <h2 className="flex items-center gap-2 text-[18px] font-semibold">
               <Check className="size-5 text-safe" /> Limpeza concluída
             </h2>
             <p className="mt-1.5 text-ink-2">

@@ -84,7 +84,7 @@
 
 /* Denser glass for dialogs that float over the page. */
 @utility glass-strong {
-  background-color: color-mix(in srgb, var(--deep, #1b1650) 82%, transparent);
+  background-color: color-mix(in srgb, var(--deep, #1b1650) 96%, transparent);
   border: 1px solid var(--glass-edge);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   backdrop-filter: blur(40px) saturate(180%);
@@ -161,4 +161,12 @@ html[data-mock] body {
   html[data-mock] body {
     background: #19191b;
   }
+}
+
+/* Dialogs: brighter secondary text and a larger base size for legibility. */
+@utility modal-legible {
+  --ink-2: rgba(255, 255, 255, 0.92);
+  --ink-3: rgba(255, 255, 255, 0.74);
+  font-size: 14.5px;
+  line-height: 1.5;
 }
