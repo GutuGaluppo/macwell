@@ -8,6 +8,7 @@ import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
 import { RowActions } from "../../components/FileTable";
 import { ImageThumb } from "../../components/ImageThumb";
+import { DuplicatesLoader } from "../../components/loaders/DuplicatesLoader";
 import { Modal, SelectionBar } from "../../components/ReviewDialog";
 import { WarningsNote, useHome } from "../scanner/ScannerPage";
 import { CategoryIcon } from "../../lib/categories";
@@ -50,7 +51,10 @@ function DuplicateProgress() {
           Cancelar
         </Button>
       </div>
-      <div className="mt-5">
+      <div className="mt-4">
+        <DuplicatesLoader phase={!stage ? "listing" : stage.stage === "full" ? "full" : "sample"} />
+      </div>
+      <div className="mt-4">
         <ProgressBar value={fraction} indeterminate={fraction === undefined} />
       </div>
       <p className="mt-4 text-[11.5px] text-ink-3">

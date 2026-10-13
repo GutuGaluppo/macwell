@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppWindow, RefreshCw, Search } from "lucide-react";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
+import { AppsLoader } from "../../components/loaders";
 import { useHome } from "../scanner/ScannerPage";
 import { formatAge, formatBytes, formatCount, shortPath } from "../../lib/format";
 import { AppIcon } from "./shared";
@@ -69,6 +70,7 @@ export function AppsPage() {
         {job.status === "failed" && <ErrorNote>{job.error}</ErrorNote>}
         {running && !r && (
           <Card className="p-5">
+            <AppsLoader />
             <div className="mb-3 text-[13px] font-medium">
               Medindo os apps {job.stage ? `(${formatCount(job.stage.done)} de ${formatCount(job.stage.total)})` : "…"}
             </div>

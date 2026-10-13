@@ -4,6 +4,7 @@ import { withBackupAck } from "../../stores/backupGate";
 import { api } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
+import { AppsLoader } from "../../components/loaders";
 import { ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
 import { useHome } from "../scanner/ScannerPage";
 import { formatBytes, formatCount, shortPath } from "../../lib/format";
@@ -52,6 +53,7 @@ export function LeftoversPage() {
         {job.status === "failed" && <ErrorNote>{job.error}</ErrorNote>}
         {running && (
           <Card className="p-5">
+            <AppsLoader ghost />
             <div className="mb-3 text-[13px] font-medium">{job.stage?.stage === "search" ? "Procurando em ~/Library" : "Listando os apps instalados"}</div>
             <ProgressBar indeterminate />
           </Card>

@@ -5,6 +5,7 @@ import { Check, Eye, FolderOpen, Images, ImageOff, Library, Search } from "lucid
 import { api, errorMessage } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
+import { ImagesLoader } from "../../components/loaders";
 import { Modal, ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
 import { WarningsNote, useHome } from "../scanner/ScannerPage";
 import { formatBytes, formatCount, parentFolder, shortPath } from "../../lib/format";
@@ -50,7 +51,10 @@ function Progress({ module, label }: { module: string; label: string }) {
           Cancelar
         </Button>
       </div>
-      <div className="mt-5">
+      <div className="mt-4">
+        <ImagesLoader />
+      </div>
+      <div className="mt-4">
         <ProgressBar value={st && st.total ? st.done / st.total : undefined} indeterminate={!st} />
       </div>
       <p className="mt-4 text-[11.5px] text-ink-3">

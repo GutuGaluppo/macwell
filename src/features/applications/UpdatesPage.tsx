@@ -3,6 +3,7 @@ import { ArrowUpCircle, Globe, RefreshCw } from "lucide-react";
 import { api } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
+import { UpdatesLoader } from "../../components/loaders";
 import { Modal } from "../../components/ReviewDialog";
 import { formatCount } from "../../lib/format";
 import { AppIcon } from "./shared";
@@ -70,6 +71,7 @@ export function UpdatesPage() {
         {job.status === "failed" && <ErrorNote>{job.error}</ErrorNote>}
         {running && (
           <Card className="p-5">
+            <UpdatesLoader />
             <div className="mb-3 text-[13px] font-medium">{job.stage ? `Consultando ${formatCount(job.stage.done)} de ${formatCount(job.stage.total)}` : "Lendo os apps instalados"}</div>
             <ProgressBar value={job.stage ? job.stage.done / Math.max(job.stage.total, 1) : undefined} indeterminate={!job.stage} />
           </Card>

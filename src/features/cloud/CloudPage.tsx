@@ -4,6 +4,7 @@ import { Cloud, CloudDownload, CloudOff, FolderOpen, Info } from "lucide-react";
 import { api, errorMessage } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
+import { CloudLoader } from "../../components/loaders";
 import { Modal } from "../../components/ReviewDialog";
 import { useHome } from "../scanner/ScannerPage";
 import { formatBytes, formatCount, shortPath } from "../../lib/format";
@@ -197,6 +198,7 @@ export function CloudPage() {
         {job.status === "failed" && <ErrorNote>{job.error}</ErrorNote>}
         {running && (
           <Card className="p-5">
+            <CloudLoader />
             <div className="mb-3 text-[13px] font-medium">
               Medindo {current?.name} · {formatCount(job.progress?.files ?? 0)} arquivos
             </div>

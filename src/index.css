@@ -148,6 +148,48 @@ body,
   }
 }
 
+/* Duplicados loader: cards meet at x=87, lock, flash, part. */
+@keyframes dl-left { 0%, 8% { transform: translateX(14px); } 40%, 62% { transform: translateX(87px); } 92%, 100% { transform: translateX(14px); } }
+@keyframes dl-right { 0%, 8% { transform: translateX(160px); } 40%, 62% { transform: translateX(87px); } 92%, 100% { transform: translateX(160px); } }
+@keyframes dl-flash { 0%, 38% { opacity: 0; transform: scale(.4); } 46% { opacity: .55; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes dl-spin { to { transform: rotate(360deg); } }
+.dl-left, .dl-right { animation: 2.8s cubic-bezier(.65, 0, .35, 1) infinite; }
+.dl-left { animation-name: dl-left; }
+.dl-right { animation-name: dl-right; }
+.dl-flash { transform-box: fill-box; transform-origin: center; animation: dl-flash 2.8s ease-out infinite; }
+.dl-ring { transform-box: fill-box; transform-origin: center; opacity: 0; transition: opacity .4s; animation: dl-spin 6s linear infinite; }
+.dl-ring-on { opacity: .6; }
+
+/* Analysis loaders (components/loaders). */
+@keyframes al-treemap { 0% { opacity: 0; transform: scale(.6); } 18%, 78% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+.al-treemap { transform-box: fill-box; transform-origin: center; opacity: 0; animation: al-treemap 3.4s ease-out infinite; }
+@keyframes al-tile {
+  0%, 8% { transform: translate(var(--sx), var(--sy)) rotate(-6deg); opacity: .5; }
+  45%, 80% { transform: translate(var(--ex), var(--ey)) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--sx), var(--sy)) rotate(-6deg); opacity: .5; }
+}
+.al-tile { animation: al-tile 3.6s cubic-bezier(.65, 0, .35, 1) infinite; }
+@keyframes al-cell { 0%, 100% { opacity: .22; transform: scale(.88); } 40% { opacity: 1; transform: scale(1); } }
+.al-cell { transform-box: fill-box; transform-origin: center; animation: al-cell 1.8s ease-in-out infinite; }
+.al-cell-ghost { animation-name: al-cell-ghost; stroke-dasharray: 3 3; }
+@keyframes al-cell-ghost { 0%, 100% { opacity: .1; } 40% { opacity: .45; } }
+@keyframes al-draw { 0% { stroke-dashoffset: 1; } 45%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.al-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: al-draw 3.6s ease-in-out infinite; }
+@keyframes al-node { 0%, 6% { opacity: 0; transform: scale(.3); } 18%, 85% { opacity: 1; transform: scale(1); } 100% { opacity: 0; } }
+.al-node { transform-box: fill-box; transform-origin: center; opacity: 0; animation: al-node 3.6s ease-out infinite; }
+@keyframes al-beam { 0% { transform: translateY(0); } 100% { transform: translateY(165px); } }
+.al-beam { animation: al-beam 1.8s ease-in-out infinite; }
+@keyframes al-float { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-5px); } }
+.al-float { animation: al-float 3s ease-in-out infinite; }
+@keyframes al-sync { 0% { opacity: 0; transform: translateY(8px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
+.al-sync { animation: al-sync 1.4s ease-in-out infinite; }
+@keyframes al-ping { 0% { opacity: .7; transform: scale(.15); } 100% { opacity: 0; transform: scale(1); } }
+.al-ping { transform-box: fill-box; transform-origin: center; animation: al-ping 2.4s ease-out infinite; }
+@keyframes al-orbit { to { transform: rotate(360deg); } }
+.al-orbit { animation: al-orbit 7s linear infinite; }
+@keyframes al-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+.al-breathe { animation: al-breathe 3.2s ease-in-out infinite; }
+
 @keyframes slide {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(300%); }

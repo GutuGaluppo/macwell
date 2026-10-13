@@ -10,6 +10,7 @@ import { Badge, Button, Card, ErrorNote } from "../../components/ui";
 import { GlassTile, RoundAction, TileButton } from "../../components/GlassTile";
 import { modules, smartCare } from "../../app/modules";
 import { Modal } from "../../components/ReviewDialog";
+import { Orbit } from "../../components/loaders";
 import smartCareHero from "../../assets/icons/cuidado-inteligente-hd.webp";
 import { useHome } from "../scanner/ScannerPage";
 import { ConfidenceBadge, kindLabel } from "../applications/shared";
@@ -306,7 +307,9 @@ export function SmartCarePage() {
 
         {running && (
           <div className="flex flex-col items-center pt-2 pb-8">
-            <img src={smartCareHero} alt="" draggable={false} className="size-[150px] animate-pulse object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
+            <Orbit size={150}>
+              <img src={smartCareHero} alt="" draggable={false} className="size-[150px] object-contain drop-shadow-[0_20px_40px_rgb(0_0_0/0.4)]" />
+            </Orbit>
             <Card className="mt-8 w-full max-w-[640px] p-5">
               <div className="grid grid-cols-3 gap-2">
                 {stageList.map((s, i) => (

@@ -3,6 +3,7 @@ import { FolderOpen, Info, ShieldQuestion } from "lucide-react";
 import { api } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
+import { SecurityLoader } from "../../components/loaders";
 import { useHome } from "../scanner/ScannerPage";
 import { formatCount, shortPath } from "../../lib/format";
 import { AppIcon } from "../applications/shared";
@@ -83,6 +84,7 @@ export function SecurityPage() {
         )}
         {running && (
           <Card className="p-5">
+            <SecurityLoader />
             <div className="mb-3 text-[13px] font-medium">
               {job.stage?.stage === "apps" ? `Verificando assinaturas (${formatCount(job.stage.done)} de ${formatCount(job.stage.total)})` : "Lendo itens de início"}
             </div>

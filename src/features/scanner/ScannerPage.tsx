@@ -5,6 +5,7 @@ import { AlertTriangle, Folder, FolderOpen, FolderSearch, HardDrive, Home, Downl
 import { api } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
+import { ScanLoader } from "../../components/loaders";
 import { formatBytes, formatCount, formatDuration, shortPath } from "../../lib/format";
 import type { ScanResult, StorageNode } from "../../types";
 import { RowActions } from "../../components/FileTable";
@@ -44,7 +45,10 @@ export function ScanProgressCard({ module, label }: { module: string; label?: st
           Cancelar
         </Button>
       </div>
-      <div className="mt-5">
+      <div className="mt-4">
+        <ScanLoader />
+      </div>
+      <div className="mt-4">
         <ProgressBar indeterminate />
       </div>
       <div className="mt-5 grid grid-cols-4 gap-4">

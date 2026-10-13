@@ -6,6 +6,7 @@ import { api, errorMessage } from "../../lib/ipc";
 import { withBackupAck } from "../../stores/backupGate";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
+import { ProjectsLoader } from "../../components/loaders";
 import { ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
 import { useHome } from "../scanner/ScannerPage";
 import { formatAge, formatBytes, formatCount, formatDateTime, shortPath } from "../../lib/format";
@@ -321,6 +322,7 @@ export function ProjectsPage() {
         )}
         {running && (
           <Card className="p-5">
+            <ProjectsLoader />
             <div className="mb-3 text-[13px] font-medium">
               {job.stage?.stage === "repos" ? `Lendo repositórios (${formatCount(job.stage.done)} de ${formatCount(job.stage.total)})` : "Procurando repositórios"}
             </div>
