@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, AppWindow, Boxes, Check, ChevronDown, ChevronRight, Copy, Download, FileSearch, Loader2, PackageX, Sparkles, Trash2 } from "lucide-react";
 import { api, errorMessage } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
+import { withBackupAck } from "../../stores/backupGate";
 import { useNav } from "../../stores/nav";
 import { Badge, Button, Card, ErrorNote } from "../../components/ui";
 import { GlassTile, RoundAction, TileButton } from "../../components/GlassTile";
@@ -246,7 +247,7 @@ export function SmartCarePage() {
     setBusy(true);
     setError(null);
     try {
-      const out = await api.runSmartCare(plan());
+      const out = await withBackupAck((ack) => api.runSmartCare(plan(), ack));
       setOutcomes(out);
       setConfirm(false);
       for (const k of ["operations", "metrics", "volumes", "trash"]) qc.invalidateQueries({ queryKey: [k] });

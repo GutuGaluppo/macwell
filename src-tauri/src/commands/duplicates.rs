@@ -9,6 +9,8 @@ use super::{start_job, JobEvent, JobOutcome};
 use crate::cleanup::{self, RemovalItem, RemovalRequest};
 use crate::db::now_ms;
 use crate::duplicates::{unchanged, validate_group, DuplicateCandidates, DuplicateGroup, DuplicateSearch, GroupRemoval, HashStats};
+use crate::backup::gate::BackupAck;
+use crate::commands::backup::require_backup_ack;
 use crate::error::{AppError, AppResult};
 use crate::filesystem::scanner::scan;
 use crate::state::AppState;
@@ -65,10 +67,11 @@ pub fn start_duplicate_scan(app: AppHandle, root: String, min_size: u64, on_even
 /// Moves selected copies to the Trash. A group that would lose every copy is refused as a whole,
 /// and a copy that changed since the scan is skipped.
 #[tauri::command]
-pub async fn move_duplicates_to_trash(app: AppHandle, groups: Vec<GroupRemoval>, scan_root: Option<String>) -> AppResult<Vec<OperationOutcome>> {
+pub async fn move_duplicates_to_trash(app: AppHandle, groups: Vec<GroupRemoval>, scan_root: Option<String>, backup_ack: Option<BackupAck>) -> AppResult<Vec<OperationOutcome>> {
     tauri::async_runtime::spawn_blocking(move || {
         use tauri::Manager;
         let state = app.state::<AppState>();
+        require_backup_ack(&state, backup_ack.as_ref())?;
         let mut outcomes = Vec::new();
         let mut items = Vec::new();
         for g in &groups {

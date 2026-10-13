@@ -3,6 +3,9 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import type {
   AppError,
+  BackupAck,
+  BackupGate,
+  BackupState,
   ArtifactRemoval,
   BuildInfo,
   OperationOutcome,
@@ -10,6 +13,9 @@ import type {
   CarePlan,
   CloudFolder,
   DevRoot,
+  ExclusionPreview,
+  TmExclusion,
+  UndoneExclusion,
   PushPlan,
   PushResult,
   SecretScan,
@@ -82,8 +88,8 @@ export const api = {
   cleanupRules: () => invoke<RulesReport>("cleanup_rules"),
   addCustomRule: (title: string, folder: string, risk: Risk) => invoke<void>("add_custom_rule", { title, folder, risk }),
   removeCustomRule: (id: string) => invoke<void>("remove_custom_rule", { id }),
-  runCleanupRules: (items: { ruleId: string; path: string; size: number }[]) => invoke<OperationOutcome[]>("run_cleanup_rules", { items }),
-  runSmartCare: (plan: CarePlan) => invoke<OperationOutcome[]>("run_smart_care", { plan }),
+  runCleanupRules: (items: { ruleId: string; path: string; size: number }[], backupAck?: BackupAck) => invoke<OperationOutcome[]>("run_cleanup_rules", { items, backupAck }),
+  runSmartCare: (plan: CarePlan, backupAck?: BackupAck) => invoke<OperationOutcome[]>("run_smart_care", { plan, backupAck }),
   health: () => invoke<Health>("health"),
   processList: () => invoke<ProcessList>("process_list"),
   quitApplication: (appPath: string) => invoke<number>("quit_application", { appPath }),
@@ -92,7 +98,7 @@ export const api = {
   appIcon: (path: string) => invoke<string | null>("app_icon", { path }),
   uninstallPlan: (path: string) => invoke<UninstallPlan>("uninstall_plan", { path }),
   uninstallApp: (path: string, leftovers: string[]) => invoke<OperationOutcome[]>("uninstall_app", { path, leftovers }),
-  removeOrphans: (items: { path: string; size: number }[]) => invoke<OperationOutcome[]>("remove_orphans", { items }),
+  removeOrphans: (items: { path: string; size: number }[], backupAck?: BackupAck) => invoke<OperationOutcome[]>("remove_orphans", { items, backupAck }),
   devRoots: () => invoke<DevRoot[]>("list_dev_roots"),
   addDevRoot: (path: string) => invoke<void>("add_dev_root", { path }),
   removeDevRoot: (path: string) => invoke<void>("remove_dev_root", { path }),
@@ -105,11 +111,21 @@ export const api = {
   checkRemoteVisibility: (repo: string, remote: string, refName: string) => invoke<PushPlan>("check_remote_visibility", { repo, remote, refName }),
   pushSnapshot: (repo: string, refName: string, remote: string, confirmed: boolean, acceptExposure: boolean) =>
     invoke<PushResult>("push_snapshot", { repo, refName, remote, confirmed, acceptExposure }),
-  removeDevArtifacts: (items: ArtifactRemoval[]) => invoke<OperationOutcome[]>("remove_dev_artifacts", { items }),
+  removeDevArtifacts: (items: ArtifactRemoval[], backupAck?: BackupAck) => invoke<OperationOutcome[]>("remove_dev_artifacts", { items, backupAck }),
+  getBackupState: () => invoke<BackupState>("get_backup_state"),
+  /** The gate before a batch cleanup: backup state plus repositories with work only on this Mac. */
+  getBackupGate: () => invoke<BackupGate>("get_backup_gate"),
+  previewTmExclusions: (items: ArtifactRemoval[]) => invoke<ExclusionPreview>("preview_tm_exclusions", { items }),
+  /** Changes a Time Machine setting for exactly the approved folders; each is checked again first. */
+  applyTmExclusions: (items: ArtifactRemoval[]) => invoke<OperationOutcome[]>("apply_tm_exclusions", { items }),
+  listTmExclusions: () => invoke<TmExclusion[]>("list_tm_exclusions"),
+  undoTmExclusions: (paths: string[]) => invoke<UndoneExclusion[]>("undo_tm_exclusions", { paths }),
+  setBackupStaleDays: (days: number) => invoke<void>("set_backup_stale_days", { days }),
   moveDuplicatesToTrash: (
     groups: { all: string[]; remove: { path: string; size: number; modifiedAt: number | null }[] }[],
     scanRoot?: string,
-  ) => invoke<OperationOutcome[]>("move_duplicates_to_trash", { groups, scanRoot }),
+    backupAck?: BackupAck,
+  ) => invoke<OperationOutcome[]>("move_duplicates_to_trash", { groups, scanRoot, backupAck }),
 };
 
 export type { ScanResult };

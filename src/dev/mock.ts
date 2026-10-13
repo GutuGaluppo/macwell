@@ -2,7 +2,7 @@
 // answered with fictitious data so screens can be designed and checked without the Rust core.
 // Never bundled into the app (imported only when `import.meta.env.DEV` and outside Tauri).
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { DevArtifact, DevReport, DevRoot, PushPlan, RemoteView, RepoReport, SecretFinding, SnapshotPlan, SnapshotRecord, Blocker, SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
+import type { ExclusionPreview, TmExclusion, BackupAck, BackupGate, BackupState, DevArtifact, DevReport, DevRoot, PushPlan, RemoteView, RepoReport, SecretFinding, SnapshotPlan, SnapshotRecord, Blocker, SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
 
 const HOME = "/Users/demo";
 const now = Date.now();
@@ -699,6 +699,104 @@ registerMock("push_snapshot", ({ repo: r, refName, remote, confirmed, acceptExpo
   if (snap) snap.pushedAt = Date.now();
   return { remote: plan.remote, url: plan.url, refName: plan.refName, commit: plan.commit };
 });
+
+// ---- Backup Guard (M13): four scenarios, switchable from the console with __setBackupScenario("strong").
+type BackupScenario = "ok" | "warn" | "strong" | "unknown";
+let backupScenario: BackupScenario = "warn";
+(window as unknown as { __setBackupScenario: (s: BackupScenario) => void }).__setBackupScenario = (s) => {
+  backupScenario = s;
+};
+let backupStaleDays = 7;
+
+function backupState(): BackupState {
+  const sc = backupScenario;
+  const last = sc === "strong" ? now - 30 * DAY : now - 2 * 3_600_000;
+  const known = sc !== "unknown";
+  return {
+    timeMachine: {
+      status: sc === "unknown" ? "unknown" : sc === "strong" ? "stale" : "recent",
+      destinations: [{ id: "D1", name: "TM-MacBook", kind: "Local", mounted: sc === "ok", quotaGb: 600, bytesUsed: 181e9, bytesAvailable: 419e9, encrypted: true, lastBackupMs: known ? last : null, lastAttemptMs: known ? last : null }],
+      autoBackup: sc === "ok" ? true : sc === "unknown" ? null : false,
+      lastBackupMs: known ? last : null,
+      lastBackupSource: known ? "preferences" : null,
+      lastAttemptMs: known ? last : null,
+      ageDays: known ? Math.floor((now - last) / DAY) : null,
+      running: false,
+      percent: null,
+      localSnapshotCount: 2,
+      newestLocalSnapshotMs: now - 3_600_000,
+      unreadable: sc === "unknown" ? [{ source: "preferences", reason: "permissionDenied", detail: "Operation not permitted" }, { source: "destinationInfo", reason: "unavailable", detail: null }] : [],
+    },
+    icloud: { driveFolderPresent: true, signedIn: true, driveEnabled: true, desktopSynced: true, documentsSynced: true, inferred: true, unreadable: [] },
+    fullDiskAccess: "denied",
+    staleDays: backupStaleDays,
+    readAt: Date.now(),
+  };
+}
+
+function backupGate(): BackupGate {
+  const sc = backupScenario;
+  const unpushed = sc === "ok" ? [] : [
+    { path: `${HOME}/Projects/AudioPlayground`, reasons: ["uncommitted", "unpushedCommits"] },
+    { path: `${HOME}/Projects/Nodi`, reasons: ["uncommitted", "noUpstream"] },
+    { path: `${HOME}/Projects/legacy-site`, reasons: ["noRemote"] },
+  ];
+  const level = sc === "ok" ? "ok" : sc === "warn" ? "warn" : "strong";
+  const reasons = sc === "ok" ? [] : sc === "warn" ? ["unpushedRepos", "autoBackupOff"] : sc === "strong" ? ["stale", "unpushedRepos", "autoBackupOff"] : ["unknown", "unpushedRepos"];
+  return { level, reasons, unpushed, unreadableRepos: 0, backup: backupState() };
+}
+
+/** Mirrors the Rust check: the answer from the UI is verified against the gate. */
+function gateError(ack: BackupAck | undefined) {
+  const level = backupGate().level;
+  if (level === "ok") return null;
+  if (level === "warn" && ack?.acknowledged) return null;
+  if (level === "strong" && ack?.acknowledged && (ack.typed ?? "").trim().toUpperCase() === "CONFIRMO") return null;
+  return { kind: "backupGate", message: level === "warn" ? "há um aviso sobre o backup: confirme que viu antes de continuar" : "não há backup recente: digite CONFIRMO para continuar" };
+}
+
+registerMock("get_backup_state", () => backupState());
+registerMock("get_backup_gate", () => backupGate());
+registerMock("set_backup_stale_days", ({ days }) => {
+  backupStaleDays = Number(days);
+  return null;
+});
+for (const name of ["run_smart_care", "run_cleanup_rules", "remove_orphans", "move_duplicates_to_trash", "remove_dev_artifacts"]) {
+  const inner = handlers[name];
+  handlers[name] = (args) => {
+    const err = gateError(args.backupAck as BackupAck | undefined);
+    return err ? Promise.reject(err) : inner(args);
+  };
+}
+
+// ---- Time Machine exclusions (M13)
+const tmExcluded = new Map<string, TmExclusion>([
+  [`${HOME}/Projects/Relay/apps/desktop/node_modules`, { path: `${HOME}/Projects/Relay/apps/desktop/node_modules`, addedAt: now - 10 * DAY, kind: "node-modules", state: "lost" }],
+  [`${HOME}/Projects/old-app/target`, { path: `${HOME}/Projects/old-app/target`, addedAt: now - 40 * DAY, kind: "rust-target", state: "missing" }],
+]);
+registerMock("preview_tm_exclusions", ({ items }): ExclusionPreview => {
+  const list = (items as { path: string; repo: string; kind: string; size: number }[]).map((i) => {
+    const tracked = devReport().artifacts.find((a) => a.path === i.path)?.notes.includes("tracked");
+    const already = tmExcluded.get(i.path)?.state === "active";
+    const ok = !tracked && !already;
+    return { path: i.path, repo: i.repo, kind: i.kind, size: i.size, state: already ? "excluded" : "included", ok, reason: tracked ? "tem arquivos versionados no git: remova pelo git, não por aqui" : already ? "já está fora do backup" : null } as ExclusionPreview["items"][number];
+  });
+  const okItems = list.filter((i) => i.ok);
+  return { items: list, count: okItems.length, bytes: okItems.reduce((n, i) => n + i.size, 0) };
+});
+registerMock("apply_tm_exclusions", ({ items }) =>
+  (items as { path: string; size: number; kind: string }[]).map((i) => {
+    tmExcluded.set(i.path, { path: i.path, addedAt: Date.now(), kind: i.kind, state: "active" });
+    return { path: i.path, size: i.size, ok: true, error: null };
+  }),
+);
+registerMock("list_tm_exclusions", () => [...tmExcluded.values()].sort((a, b) => a.path.localeCompare(b.path)));
+registerMock("undo_tm_exclusions", ({ paths }) =>
+  (paths as string[]).map((path) => {
+    const had = tmExcluded.delete(path);
+    return { path, ok: had, gone: false, stillExcluded: false, error: had ? null : "esta exclusão não foi feita pelo OrganizeMyMac" };
+  }),
+);
 
 export function install() {
   mockIPC((cmd, args) => {

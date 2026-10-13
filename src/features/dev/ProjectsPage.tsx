@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Camera, ChevronDown, ChevronRight, FolderOpen, FolderPlus, GitBranch, Send, X } from "lucide-react";
 import { api, errorMessage } from "../../lib/ipc";
+import { withBackupAck } from "../../stores/backupGate";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
 import { ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
@@ -379,7 +380,7 @@ export function ProjectsPage() {
           execute={(plain) => {
             const byPath = new Map(chosen.map((a) => [a.path, a]));
             const items = plain.map((i) => ({ path: i.path, size: i.size, repo: byPath.get(i.path)?.repo ?? "", kind: byPath.get(i.path)?.kind ?? "" }));
-            return api.removeDevArtifacts(items);
+            return withBackupAck((ack) => api.removeDevArtifacts(items, ack));
           }}
           onClose={() => setReviewing(false)}
           onDone={removed}

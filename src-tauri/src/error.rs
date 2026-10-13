@@ -16,6 +16,9 @@ pub enum AppError {
     NotFound(String),
     #[error("invalid input: {0}")]
     Invalid(String),
+    /// The backup gate refused: the action needs an acknowledgement that was not given.
+    #[error("{0}")]
+    BackupGate(String),
     #[error("cancelled")]
     Cancelled,
     #[error("{0}")]
@@ -32,6 +35,7 @@ impl AppError {
             AppError::Safety(_) => "safety",
             AppError::NotFound(_) => "notFound",
             AppError::Invalid(_) => "invalid",
+            AppError::BackupGate(_) => "backupGate",
             AppError::Cancelled => "cancelled",
             AppError::Other(_) => "other",
         }

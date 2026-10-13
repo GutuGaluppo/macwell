@@ -60,6 +60,7 @@ export const modules: Module[] = [
     icon: scanner, // placeholder until the module gets its own glass icon
     sections: [
       { id: "projects", label: "Projetos", job: "dev" },
+      { id: "backup", label: "Backup" },
     ],
   },
   {

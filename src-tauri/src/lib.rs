@@ -1,4 +1,5 @@
 pub mod applications;
+pub mod backup;
 pub mod cleanup;
 pub mod cloud;
 pub mod commands;
@@ -86,6 +87,13 @@ pub fn run() {
         .setup(setup)
         .invoke_handler(tauri::generate_handler![
             commands::cancel_job,
+            commands::backup::get_backup_state,
+            commands::backup::get_backup_gate,
+            commands::backup::preview_tm_exclusions,
+            commands::backup::apply_tm_exclusions,
+            commands::backup::list_tm_exclusions,
+            commands::backup::undo_tm_exclusions,
+            commands::backup::set_backup_stale_days,
             commands::dev::list_dev_roots,
             commands::dev::add_dev_root,
             commands::dev::remove_dev_root,

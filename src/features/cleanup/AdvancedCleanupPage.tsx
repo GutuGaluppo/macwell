@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ChevronDown, ChevronRight, Info, Lock, Plus, RefreshCw, X } from "lucide-react";
+import { withBackupAck } from "../../stores/backupGate";
 import { api, errorMessage } from "../../lib/ipc";
 import { Badge, Button, Card, ErrorNote, PageHeader } from "../../components/ui";
 import { Modal, ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
@@ -246,7 +247,7 @@ export function AdvancedCleanupPage() {
         <ReviewDialog
           items={chosen.map((c) => ({ path: c.path, size: c.size, label: c.title }))}
           home={home}
-          execute={() => api.runCleanupRules(chosen.map(({ ruleId, path, size }) => ({ ruleId, path, size })))}
+          execute={() => withBackupAck((ack) => api.runCleanupRules(chosen.map(({ ruleId, path, size }) => ({ ruleId, path, size })), ack))}
           onClose={() => setReview(false)}
           onDone={() => qc.invalidateQueries({ queryKey: ["cleanupRules"] })}
         />

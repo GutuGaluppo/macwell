@@ -5,6 +5,8 @@ use tauri::{AppHandle, Manager};
 
 use crate::cleanup::rules::{builtin_rules, custom_rule, evaluate, running_apps, still_allowed, valid_custom_folder, CleanupRule, Risk, RuleResult};
 use crate::cleanup::{self, RemovalItem, RemovalRequest};
+use crate::backup::gate::BackupAck;
+use crate::commands::backup::require_backup_ack;
 use crate::error::{AppError, AppResult};
 use crate::filesystem::{probe_full_disk_access, AccessStatus};
 use crate::state::AppState;
@@ -96,9 +98,10 @@ pub struct RuleRemoval {
 /// Moves matches of cleanup rules to the Trash, re-checking each against its rule and the apps
 /// that are open right now.
 #[tauri::command]
-pub async fn run_cleanup_rules(app: AppHandle, items: Vec<RuleRemoval>) -> AppResult<Vec<OperationOutcome>> {
+pub async fn run_cleanup_rules(app: AppHandle, items: Vec<RuleRemoval>, backup_ack: Option<BackupAck>) -> AppResult<Vec<OperationOutcome>> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
+        require_backup_ack(&state, backup_ack.as_ref())?;
         let home = state.paths.home.clone();
         let rules = all_rules(&state);
         let running = running_apps();

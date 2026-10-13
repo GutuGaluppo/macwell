@@ -20,6 +20,8 @@ import { CloudPage } from "../features/cloud/CloudPage";
 import { UpdatesPage } from "../features/applications/UpdatesPage";
 import { SecurityPage } from "../features/security/SecurityPage";
 import { ProjectsPage } from "../features/dev/ProjectsPage";
+import { BackupPage } from "../features/backup/BackupPage";
+import { BackupGateHost } from "../features/backup/BackupGateDialog";
 import { Onboarding, hasOnboarded } from "../features/onboarding/Onboarding";
 
 export function App() {
@@ -47,8 +49,10 @@ export function App() {
         {section === "performance" && <PerformancePage />}
         {section === "security" && <SecurityPage />}
         {section === "projects" && <ProjectsPage />}
+        {section === "backup" && <BackupPage />}
         {section === "settings" && <SettingsPage />}
       </main>
+      <BackupGateHost />
       {!onboarded && <Onboarding onDone={() => setOnboarded(true)} />}
     </div>
   );

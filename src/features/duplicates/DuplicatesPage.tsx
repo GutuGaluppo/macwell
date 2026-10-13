@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { Copy, FolderOpen, Link2, Search, Sparkles } from "lucide-react";
+import { withBackupAck } from "../../stores/backupGate";
 import { api, errorMessage } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
@@ -198,7 +199,7 @@ export function DuplicatesPage() {
           remove: g.files.filter((f) => selected.has(f.path)).map((f) => ({ path: f.path, size: f.sizeLogical, modifiedAt: f.modifiedAt ?? null })),
         }))
         .filter((g) => g.remove.length > 0);
-      const out = await api.moveDuplicatesToTrash(request, r?.root);
+      const out = await withBackupAck((ack) => api.moveDuplicatesToTrash(request, r?.root, ack));
       setOutcomes(out);
       setConfirm(false);
       const gone = new Set(out.filter((o) => o.ok).map((o) => o.path));

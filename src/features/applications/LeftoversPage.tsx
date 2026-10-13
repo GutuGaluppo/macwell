@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Info, PackageX } from "lucide-react";
+import { withBackupAck } from "../../stores/backupGate";
 import { api } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
 import { Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
@@ -102,7 +103,7 @@ export function LeftoversPage() {
         <ReviewDialog
           items={chosen.map((i) => ({ path: i.path, size: i.size, label: `${i.bundleId} · ${kindLabel[i.kind]}`, confidence: i.confidence }))}
           home={home}
-          execute={api.removeOrphans}
+          execute={(items) => withBackupAck((ack) => api.removeOrphans(items, ack))}
           onClose={() => setReview(false)}
           onDone={(out) => {
             const gone = new Set(out.filter((o) => o.ok).map((o) => o.path));

@@ -537,3 +537,67 @@ export type PushResult = { remote: string; url: string; refName: string; commit:
 /** What the user approved; the Rust side re-derives each folder before it moves. */
 export type ArtifactRemoval = { path: string; repo: string; kind: string; size: number };
 
+// ---- Backup Guard (M13). Mirrors src-tauri/src/backup.
+
+export type TimeMachineStatus = "noDestination" | "recent" | "stale" | "neverBackedUp" | "unknown";
+export type BackupSource = "preferences" | "destinationInfo" | "status" | "latestBackup" | "localSnapshots" | "mobileMeAccounts" | "finderPreferences";
+export type UnreadableReason = "permissionDenied" | "notMounted" | "unavailable";
+export type Unreadable = { source: BackupSource; reason: UnreadableReason; detail: string | null };
+
+export type BackupDestination = {
+  id: string;
+  name: string | null;
+  kind: string | null;
+  mounted: boolean | null;
+  quotaGb: number | null;
+  bytesUsed: number | null;
+  bytesAvailable: number | null;
+  encrypted: boolean | null;
+  lastBackupMs: number | null;
+  lastAttemptMs: number | null;
+};
+
+export type TimeMachineState = {
+  status: TimeMachineStatus;
+  destinations: BackupDestination[];
+  autoBackup: boolean | null;
+  lastBackupMs: number | null;
+  lastBackupSource: BackupSource | null;
+  lastAttemptMs: number | null;
+  ageDays: number | null;
+  running: boolean;
+  percent: number | null;
+  localSnapshotCount: number;
+  newestLocalSnapshotMs: number | null;
+  unreadable: Unreadable[];
+};
+
+export type ICloudState = {
+  driveFolderPresent: boolean;
+  signedIn: boolean | null;
+  driveEnabled: boolean | null;
+  desktopSynced: boolean | null;
+  documentsSynced: boolean | null;
+  inferred: boolean;
+  unreadable: Unreadable[];
+};
+
+export type BackupState = { timeMachine: TimeMachineState; icloud: ICloudState; fullDiskAccess: AccessStatus; staleDays: number; readAt: number };
+
+export type GateLevel = "ok" | "warn" | "strong";
+export type UnsyncedRepo = { path: string; reasons: string[] };
+export type BackupGate = { level: GateLevel; reasons: string[]; unpushed: UnsyncedRepo[]; unreadableRepos: number; backup: BackupState };
+
+/** The user's answer to a gate; the Rust side checks it against a fresh read. */
+export type BackupAck = { acknowledged: boolean; typed?: string | null };
+
+// ---- Time Machine exclusions for regenerable folders (M13).
+
+export type ExclusionState = "included" | "excluded" | "unknown";
+export type ExclusionPreviewItem = { path: string; repo: string; kind: string; size: number; state: ExclusionState; ok: boolean; reason: string | null };
+export type ExclusionPreview = { items: ExclusionPreviewItem[]; count: number; bytes: number };
+/** active: still out of the backup. lost: the folder is back in it (usually deleted and recreated). missing: the folder is gone. */
+export type ListedExclusionState = "active" | "lost" | "missing" | "unknown";
+export type TmExclusion = { path: string; addedAt: number; kind: string | null; state: ListedExclusionState };
+export type UndoneExclusion = { path: string; ok: boolean; gone: boolean; stillExcluded: boolean; error: string | null };
+

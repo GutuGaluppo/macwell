@@ -24,6 +24,7 @@ aplicativos com os restos que deixam.
 | M10 | Nuvem e atualizações: uso local de iCloud Drive, Google Drive, Dropbox e OneDrive, remover download do iCloud, detecção de versões (App Store e Sparkle) | ✅ |
 | M11 | Trilha de pesquisa em segurança: **auditoria** de itens de início e de assinaturas de apps (implementada, experimental); YARA, serviço de assinaturas e Endpoint Security documentados como pesquisa ([docs/M11-SECURITY-RESEARCH.md](docs/M11-SECURITY-RESEARCH.md)) | ✅ / 📝 |
 | M12 | Projetos (Developer Care): repositórios git, artefatos regeneráveis, verificação de segredos e snapshot WIP em branch local ([docs/M12-DEVELOPER-CARE.md](docs/M12-DEVELOPER-CARE.md)) | ✅ |
+| M13 | Backup Guard: estado do Time Machine e do iCloud, portão antes de limpezas em lote, exclusões do Time Machine ([docs/M13-BACKUP-GUARD.md](docs/M13-BACKUP-GUARD.md)) | ✅ |
 
 M0–M4 formam o MVP 1.0 recomendado no plano. O plano completo está em [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md).
 

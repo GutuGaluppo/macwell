@@ -10,7 +10,9 @@ use tauri::{AppHandle, Manager};
 
 use super::{start_job, JobEvent, JobOutcome};
 use crate::db::{Db, DevRoot, SnapshotRecord};
+use crate::backup::gate::BackupAck;
 use crate::cleanup::{self, RemovalRequest};
+use crate::commands::backup::require_backup_ack;
 use crate::dev::artifacts::builtin_rules;
 use crate::dev::git::Git;
 use crate::dev::removal::{revalidate, ArtifactRemoval};
@@ -252,6 +254,11 @@ pub fn remove_artifacts_with(
 
 /// Moves the regenerable folders the user approved to the Trash.
 #[tauri::command]
-pub async fn remove_dev_artifacts(app: AppHandle, items: Vec<ArtifactRemoval>) -> AppResult<Vec<OperationOutcome>> {
-    blocking(move || remove_artifacts(&app.state::<AppState>(), items)).await
+pub async fn remove_dev_artifacts(app: AppHandle, items: Vec<ArtifactRemoval>, backup_ack: Option<BackupAck>) -> AppResult<Vec<OperationOutcome>> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        require_backup_ack(&state, backup_ack.as_ref())?;
+        remove_artifacts(&state, items)
+    })
+    .await
 }

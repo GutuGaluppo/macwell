@@ -10,6 +10,8 @@ use super::{start_job, JobEvent, JobOutcome};
 use crate::applications::leftovers::{find_for_app, find_orphans, installed_bundle_ids, still_orphan, AppIdentity, Leftover, OrphanGroup};
 use crate::applications::{icon_png, is_running, list_apps, read_bundle, running_executables, AppInfo};
 use crate::cleanup::{self, RemovalItem, RemovalRequest};
+use crate::backup::gate::BackupAck;
+use crate::commands::backup::require_backup_ack;
 use crate::error::{AppError, AppResult};
 use crate::filesystem::scanner::ScanEvent;
 use crate::filesystem::{probe_full_disk_access, AccessStatus};
@@ -174,9 +176,10 @@ pub fn start_orphan_scan(app: AppHandle, on_event: Channel<JobEvent<OrphansResul
 /// Moves leftovers of uninstalled apps to the Trash. Each path must still be an entry of one of
 /// the known ~/Library folders, named after a bundle id that no installed app has.
 #[tauri::command]
-pub async fn remove_orphans(app: AppHandle, items: Vec<RemovalItem>) -> AppResult<Vec<OperationOutcome>> {
+pub async fn remove_orphans(app: AppHandle, items: Vec<RemovalItem>, backup_ack: Option<BackupAck>) -> AppResult<Vec<OperationOutcome>> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
+        require_backup_ack(&state, backup_ack.as_ref())?;
         let library = state.paths.home.join("Library");
         let installed = installed_bundle_ids(&state.paths.home);
         let mut outcomes = Vec::new();

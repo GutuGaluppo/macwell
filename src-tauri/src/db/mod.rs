@@ -158,6 +158,15 @@ pub struct DevRoot {
     pub added_at: i64,
 }
 
+/// A Time Machine exclusion this app added (and can therefore undo).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TmExclusionRecord {
+    pub path: String,
+    pub added_at: i64,
+    pub kind: Option<String>,
+}
+
 pub fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
 }
@@ -302,6 +311,27 @@ impl Db {
 
     pub fn remove_dev_root(&self, path: &str) -> AppResult<()> {
         self.conn.execute("DELETE FROM dev_roots WHERE path = ?1", params![path])?;
+        Ok(())
+    }
+
+    pub fn record_tm_exclusion(&self, path: &str, kind: &str) -> AppResult<()> {
+        self.conn.execute(
+            "INSERT INTO tm_exclusions (path, added_at, source_artifact_kind, removed_at) VALUES (?1, ?2, ?3, NULL)
+             ON CONFLICT(path) DO UPDATE SET added_at = ?2, source_artifact_kind = ?3, removed_at = NULL",
+            params![path, now_ms(), kind],
+        )?;
+        Ok(())
+    }
+
+    /// Exclusions this app added and has not undone.
+    pub fn tm_exclusions(&self) -> AppResult<Vec<TmExclusionRecord>> {
+        let mut stmt = self.conn.prepare("SELECT path, added_at, source_artifact_kind FROM tm_exclusions WHERE removed_at IS NULL ORDER BY path")?;
+        let rows = stmt.query_map([], |r| Ok(TmExclusionRecord { path: r.get(0)?, added_at: r.get(1)?, kind: r.get(2)? }))?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn mark_tm_exclusion_removed(&self, path: &str) -> AppResult<()> {
+        self.conn.execute("UPDATE tm_exclusions SET removed_at = ?2 WHERE path = ?1 AND removed_at IS NULL", params![path, now_ms()])?;
         Ok(())
     }
 
@@ -472,6 +502,23 @@ mod tests {
         let snap = db.snapshots(Some("/r")).unwrap();
         assert_eq!(snap[0].id, id);
         assert!(snap[0].pushed_at.is_some());
+    }
+
+    #[test]
+    fn tm_exclusions_are_recorded_and_undone() {
+        let db = Db::open_in_memory().unwrap();
+        db.record_tm_exclusion("/p/a/node_modules", "node-modules").unwrap();
+        db.record_tm_exclusion("/p/b/target", "rust-target").unwrap();
+        assert_eq!(db.tm_exclusions().unwrap().len(), 2);
+        db.mark_tm_exclusion_removed("/p/a/node_modules").unwrap();
+        let left = db.tm_exclusions().unwrap();
+        assert_eq!((left.len(), left[0].path.as_str(), left[0].kind.as_deref()), (1, "/p/b/target", Some("rust-target")));
+        // Excluding the same folder again after an undo makes it active again.
+        db.record_tm_exclusion("/p/a/node_modules", "node-modules").unwrap();
+        assert_eq!(db.tm_exclusions().unwrap().len(), 2);
+        // Undoing something the app never added changes nothing.
+        db.mark_tm_exclusion_removed("/somewhere/else").unwrap();
+        assert_eq!(db.tm_exclusions().unwrap().len(), 2);
     }
 
     #[test]

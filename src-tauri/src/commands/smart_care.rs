@@ -10,6 +10,8 @@ use crate::applications::leftovers::{installed_bundle_ids, still_orphan};
 use crate::cleanup::{self, trash_bin, RemovalItem, RemovalRequest};
 use crate::dev::removal::ArtifactRemoval;
 use crate::duplicates::{unchanged, validate_group, GroupRemoval};
+use crate::backup::gate::BackupAck;
+use crate::commands::backup::require_backup_ack;
 use crate::error::{AppError, AppResult};
 use crate::smart_care::{self, SmartCareReport};
 use crate::state::AppState;
@@ -52,9 +54,10 @@ pub struct CarePlan {
 /// Runs a reviewed Smart Care plan. The Trash is emptied first and only the reviewed items are
 /// deleted, so nothing moved to the Trash by this same plan is ever deleted permanently.
 #[tauri::command]
-pub async fn run_smart_care(app: AppHandle, plan: CarePlan) -> AppResult<Vec<OperationOutcome>> {
+pub async fn run_smart_care(app: AppHandle, plan: CarePlan, backup_ack: Option<BackupAck>) -> AppResult<Vec<OperationOutcome>> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
+        require_backup_ack(&state, backup_ack.as_ref())?;
         let home = state.paths.home.clone();
         let library = home.join("Library");
         let policy = state.policy.read().unwrap().clone();
