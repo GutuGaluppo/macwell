@@ -16,6 +16,9 @@ pub enum AppError {
     NotFound(String),
     #[error("invalid input: {0}")]
     Invalid(String),
+    /// The target of a write already exists and the caller did not say it may be replaced.
+    #[error("{0}")]
+    Exists(String),
     /// The backup gate refused: the action needs an acknowledgement that was not given.
     #[error("{0}")]
     BackupGate(String),
@@ -36,6 +39,7 @@ impl AppError {
             AppError::NotFound(_) => "notFound",
             AppError::Invalid(_) => "invalid",
             AppError::BackupGate(_) => "backupGate",
+            AppError::Exists(_) => "exists",
             AppError::Cancelled => "cancelled",
             AppError::Other(_) => "other",
         }

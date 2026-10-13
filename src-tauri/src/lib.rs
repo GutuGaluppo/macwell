@@ -1,5 +1,6 @@
 pub mod applications;
 pub mod backup;
+pub mod brew;
 pub mod cleanup;
 pub mod cloud;
 pub mod commands;
@@ -14,6 +15,7 @@ pub mod jobs;
 pub mod menubar;
 pub mod processes;
 pub mod quarantine;
+pub mod report;
 pub mod security;
 pub mod smart_care;
 pub mod state;
@@ -88,6 +90,9 @@ pub fn run() {
         .setup(setup)
         .invoke_handler(tauri::generate_handler![
             commands::cancel_job,
+            commands::brew::analyze_homebrew,
+            commands::report::generate_report,
+            commands::report::export_report,
             commands::quarantine::get_removal_mode,
             commands::quarantine::set_removal_mode,
             commands::quarantine::list_quarantine,

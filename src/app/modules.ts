@@ -62,6 +62,7 @@ export const modules: Module[] = [
     sections: [
       { id: "projects", label: "Projetos", job: "dev" },
       { id: "backup", label: "Backup" },
+      { id: "report", label: "Relatório" },
     ],
   },
   {
@@ -80,6 +81,7 @@ export const modules: Module[] = [
       { id: "apps", label: "Aplicativos", job: "apps" },
       { id: "leftovers", label: "Restos de apps", job: "leftovers" },
       { id: "updates", label: "Atualizações", job: "updates" },
+      { id: "homebrew", label: "Homebrew" },
     ],
   },
   {

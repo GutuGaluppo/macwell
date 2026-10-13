@@ -2,7 +2,7 @@
 // answered with fictitious data so screens can be designed and checked without the Rust core.
 // Never bundled into the app (imported only when `import.meta.env.DEV` and outside Tauri).
 import { mockIPC } from "@tauri-apps/api/mocks";
-import type { QuarantineList, QuarantineView, RemovalMode, ExclusionPreview, TmExclusion, BackupAck, BackupGate, BackupState, DevArtifact, DevReport, DevRoot, PushPlan, RemoteView, RepoReport, SecretFinding, SnapshotPlan, SnapshotRecord, Blocker, SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
+import type { HomebrewReport, Report, QuarantineList, QuarantineView, RemovalMode, ExclusionPreview, TmExclusion, BackupAck, BackupGate, BackupState, DevArtifact, DevReport, DevRoot, PushPlan, RemoteView, RepoReport, SecretFinding, SnapshotPlan, SnapshotRecord, Blocker, SecurityAudit, CloudUsage, UpdatesResult, RulesReport, SmartCareReport, SimilarResult, AppInfo, AppsResult, Leftover, OrphansResult, UninstallPlan, DuplicateGroup, DuplicatesResult, DownloadItem, DownloadsResult, FileCategory, FileEntry, FindResult, ScanResult, StorageNode } from "../types";
 
 const HOME = "/Users/demo";
 const now = Date.now();
@@ -832,6 +832,76 @@ registerMock("empty_quarantine", ({ ids, confirmed }) => {
     quarantined.splice(i, 1);
     return { path: q.dest, size: q.size, ok: true, error: null };
   });
+});
+
+// ---- Report (M14)
+const mockSave = { exists: false };
+(window as unknown as { __setSaveExists: (v: boolean) => void }).__setSaveExists = (v) => {
+  mockSave.exists = v;
+};
+registerMock("plugin:dialog|save", ({ options }) => {
+  const filters = (options as { filters?: { extensions: string[] }[] } | undefined)?.filters;
+  const ext = filters?.[0]?.extensions?.[0] ?? "md";
+  return `${HOME}/Desktop/${mockSave.exists ? "ja-existe" : "relatorio-organizemymac"}.${ext}`;
+});
+registerMock("generate_report", ({ periodDays }): Report => {
+  const g = backupGate();
+  return {
+    generatedAt: Date.now(),
+    periodDays: Number(periodDays),
+    groups: [
+      { action: "trash", label: "Movido para a Lixeira", total: 14, ok: 13, bytes: 1.4e9 },
+      { action: "quarantine", label: "Movido para a Quarentena", total: 3, ok: 3, bytes: 1.74e9 },
+      { action: "tmExclude", label: "Excluído do backup do Time Machine", total: 6, ok: 6, bytes: 0 },
+      { action: "snapshot", label: "Snapshot do trabalho criado", total: 2, ok: 2, bytes: 0 },
+    ],
+    recent: [
+      { whenMs: now - 3_600_000, action: "quarantine", label: "Movido para a Quarentena", path: `${HOME}/Downloads/Figma-126.1.dmg`, size: 540e6, ok: true, detail: null },
+      { whenMs: now - 7_200_000, action: "trash", label: "Movido para a Lixeira", path: `${HOME}/Projects/Relay/node_modules`, size: 732e6, ok: true, detail: null },
+      { whenMs: now - 2 * DAY, action: "trash", label: "Movido para a Lixeira", path: `${HOME}/Projects/legacy-site/build`, size: 61e6, ok: false, detail: "tem arquivos versionados no git: remova pelo git, não por aqui" },
+      ...Array.from({ length: 9 }, (_, i) => ({ whenMs: now - (3 + i) * DAY, action: "trash", label: "Movido para a Lixeira", path: `${HOME}/Library/Caches/app-${i}`, size: 20e6, ok: true, detail: null })),
+    ],
+    recentOmitted: 0,
+    snapshots: [{ whenMs: now - DAY, repo: `${HOME}/Projects/Nodi`, refName: "wip/snapshot-2026-10-12", pushed: false }],
+    backup: { status: g.backup.timeMachine.status, lastBackupMs: g.backup.timeMachine.lastBackupMs, autoBackup: g.backup.timeMachine.autoBackup, staleDays: 7 },
+    pending: [
+      { code: "autoBackupOff", title: "Backups automáticos desligados", detail: "Um novo backup só acontece se alguém o disparar.", count: 0, bytes: 0, items: [] },
+      { code: "unpushedRepos", title: "3 repositórios com trabalho só neste Mac", detail: "Alterações sem commit, commits não enviados ou branches sem destino.", count: 3, bytes: 0, items: g.unpushed.map((u) => ({ text: u.path, note: u.reasons.map((r) => ({ uncommitted: "alterações sem commit", unpushedCommits: "commits não enviados", noUpstream: "branch sem upstream", noRemote: "sem remote" } as Record<string, string>)[r] ?? r).join(", ") })) },
+      { code: "quarantine", title: "3 itens na Quarentena", detail: "Continuam ocupando espaço: restaurar ou enviar à Lixeira.", count: 3, bytes: 1.7e9, items: [{ text: `${HOME}/Documents/Old/contrato-2019.pdf`, note: "não está mais na pasta" }] },
+    ],
+    next: { code: "snapshot", text: "Faça um snapshot de 3 repositórios: o que está lá só existe neste Mac." },
+  };
+});
+registerMock("export_report", ({ path, overwrite }) => {
+  if (String(path).includes("ja-existe") && !overwrite) return Promise.reject({ kind: "exists", message: `já existe um arquivo em ${path}` });
+  return { path, bytes: 4096 };
+});
+
+// ---- Homebrew (M14)
+registerMock("analyze_homebrew", (): HomebrewReport => {
+  const pkg = (name: string, kind: "formula" | "cask", installed: string, current: string, change: HomebrewReport["packages"][number]["change"], risk: HomebrewReport["packages"][number]["risk"], runtime = false, projects: HomebrewReport["packages"][number]["projects"] = [], pinned = false) => ({
+    name, kind, installed: [installed], current, pinned, change, risk, runtime, upgradeCommand: `brew upgrade${kind === "cask" ? " --cask" : ""} ${name}`, projects,
+  });
+  return {
+    installed: true,
+    error: null,
+    reposScanned: 9,
+    packages: [
+      pkg("node", "formula", "20.11.1", "22.1.0", "major", "high", true, [
+        { repo: `${HOME}/Projects/Relay`, via: "Brewfile", exact: true },
+        { repo: `${HOME}/Projects/AudioPlayground`, via: "package.json", exact: false },
+        { repo: `${HOME}/Projects/Nodi`, via: "package.json", exact: false },
+        { repo: `${HOME}/Projects/tattoo_tips`, via: ".nvmrc", exact: false },
+      ]),
+      pkg("postgresql@14", "formula", "14.10", "14.11", "minor", "high", true),
+      pkg("python@3.11", "formula", "3.11.7", "3.12.2", "minor", "high", true, [{ repo: `${HOME}/Projects/legacy-site`, via: "requirements.txt", exact: false }]),
+      pkg("git", "formula", "2.43.0", "2.44.0", "minor", "medium"),
+      pkg("figma", "cask", "124.0", "126.1", "major", "medium"),
+      pkg("wget", "formula", "1.21.4", "1.21.4_1", "patch", "low"),
+      pkg("docker", "cask", "4.27.0", "4.28.0", "minor", "low", false, [{ repo: `${HOME}/Projects/Relay`, via: "Brewfile", exact: true }]),
+      pkg("ffmpeg", "formula", "6.1", "7.0", "major", "pinned", false, [], true),
+    ],
+  };
 });
 
 export function install() {

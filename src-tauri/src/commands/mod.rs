@@ -3,6 +3,7 @@
 
 pub mod apps;
 pub mod backup;
+pub mod brew;
 pub mod cleanup_rules;
 pub mod cloud;
 pub mod dev;
@@ -11,6 +12,7 @@ pub mod files;
 pub mod health;
 pub mod images;
 pub mod quarantine;
+pub mod report;
 pub mod scan;
 pub mod security;
 pub mod smart_care;

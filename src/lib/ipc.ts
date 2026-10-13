@@ -14,6 +14,10 @@ import type {
   CloudFolder,
   DevRoot,
   ExclusionPreview,
+  Exported,
+  HomebrewReport,
+  Report,
+  ReportFormat,
   TmExclusion,
   UndoneExclusion,
   PushPlan,
@@ -122,6 +126,12 @@ export const api = {
   applyTmExclusions: (items: ArtifactRemoval[]) => invoke<OperationOutcome[]>("apply_tm_exclusions", { items }),
   listTmExclusions: () => invoke<TmExclusion[]>("list_tm_exclusions"),
   undoTmExclusions: (paths: string[]) => invoke<UndoneExclusion[]>("undo_tm_exclusions", { paths }),
+  /** Read only: `brew outdated` plus a look at your project folders. Never upgrades anything. */
+  analyzeHomebrew: () => invoke<HomebrewReport>("analyze_homebrew"),
+  generateReport: (periodDays: number) => invoke<Report>("generate_report", { periodDays }),
+  /** Rebuilds the report on the Rust side and writes it where the user chose. Fails with kind "exists" unless `overwrite`. */
+  exportReport: (format: ReportFormat, path: string, overwrite: boolean, periodDays: number) =>
+    invoke<Exported>("export_report", { format, path, overwrite, periodDays }),
   getRemovalMode: () => invoke<RemovalMode>("get_removal_mode"),
   setRemovalMode: (mode: RemovalMode) => invoke<void>("set_removal_mode", { mode }),
   listQuarantine: () => invoke<QuarantineList>("list_quarantine"),

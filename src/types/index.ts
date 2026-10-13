@@ -607,3 +607,45 @@ export type RemovalMode = "trash" | "quarantine";
 export type QuarantineView = { id: string; origin: string; dest: string; size: number; quarantinedAt: number; present: boolean; logPath: string };
 export type QuarantineList = { items: QuarantineView[]; totalBytes: number };
 
+// ---- Report (M14). Mirrors src-tauri/src/report.
+
+export type ReportFormat = "markdown" | "csv";
+export type DoneGroup = { action: string; label: string; total: number; ok: number; bytes: number };
+export type DoneLine = { whenMs: number; action: string; label: string; path: string; size: number; ok: boolean; detail: string | null };
+export type SnapshotLine = { whenMs: number; repo: string; refName: string; pushed: boolean };
+export type PendingLine = { text: string; note: string | null };
+export type PendingItem = { code: string; title: string; detail: string; count: number; bytes: number; items: PendingLine[] };
+export type NextDecision = { code: string; text: string };
+export type Report = {
+  generatedAt: number;
+  periodDays: number;
+  groups: DoneGroup[];
+  recent: DoneLine[];
+  recentOmitted: number;
+  snapshots: SnapshotLine[];
+  backup: { status: TimeMachineStatus; lastBackupMs: number | null; autoBackup: boolean | null; staleDays: number };
+  pending: PendingItem[];
+  next: NextDecision;
+};
+export type Exported = { path: string; bytes: number };
+
+// ---- Homebrew analysis (M14, read only). Mirrors src-tauri/src/brew.
+
+export type BrewKind = "formula" | "cask";
+export type BrewChange = "major" | "minor" | "patch" | "other";
+export type BrewRisk = "high" | "medium" | "low" | "pinned";
+/** Exact when a Brewfile lists the package; otherwise an estimate from files like package.json. */
+export type ProjectUse = { repo: string; via: string; exact: boolean };
+export type BrewPackage = {
+  name: string;
+  kind: BrewKind;
+  installed: string[];
+  current: string;
+  pinned: boolean;
+  change: BrewChange;
+  risk: BrewRisk;
+  runtime: boolean;
+  upgradeCommand: string;
+  projects: ProjectUse[];
+};
+export type HomebrewReport = { installed: boolean; packages: BrewPackage[]; error: string | null; reposScanned: number };

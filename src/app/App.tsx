@@ -19,9 +19,11 @@ import { SmartCarePage } from "../features/smartcare/SmartCarePage";
 import { AdvancedCleanupPage } from "../features/cleanup/AdvancedCleanupPage";
 import { CloudPage } from "../features/cloud/CloudPage";
 import { UpdatesPage } from "../features/applications/UpdatesPage";
+import { HomebrewPage } from "../features/homebrew/HomebrewPage";
 import { SecurityPage } from "../features/security/SecurityPage";
 import { ProjectsPage } from "../features/dev/ProjectsPage";
 import { BackupPage } from "../features/backup/BackupPage";
+import { ReportPage } from "../features/report/ReportPage";
 import { BackupGateHost } from "../features/backup/BackupGateDialog";
 import { Onboarding, hasOnboarded } from "../features/onboarding/Onboarding";
 
@@ -44,6 +46,7 @@ export function App() {
         {section === "cleanup" && <AdvancedCleanupPage />}
         {section === "cloud" && <CloudPage />}
         {section === "updates" && <UpdatesPage />}
+        {section === "homebrew" && <HomebrewPage />}
         {section === "trash" && <TrashPage />}
         {section === "quarantine" && <QuarantinePage />}
         {section === "apps" && <AppsPage />}
@@ -52,6 +55,7 @@ export function App() {
         {section === "security" && <SecurityPage />}
         {section === "projects" && <ProjectsPage />}
         {section === "backup" && <BackupPage />}
+        {section === "report" && <ReportPage />}
         {section === "settings" && <SettingsPage />}
       </main>
       <BackupGateHost />
