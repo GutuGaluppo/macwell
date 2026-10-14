@@ -1,8 +1,7 @@
-import { Settings } from "lucide-react";
 import { useNav, type Section } from "../stores/nav";
 import { useJobs } from "../stores/jobs";
 import { useStage } from "../stores/stage";
-import { appIcon, home, modules, smartCare, tools, type Module } from "./modules";
+import { appIcon, home, modules, settingsIcon, smartCare, tools, type Module } from "./modules";
 
 // Rows sit on the window gradient; the active one becomes a glass pill.
 // In the icon rail the row is a circle, so the active border is round.
@@ -118,9 +117,7 @@ export function Sidebar() {
       </div>
       <div className="pt-3 [-webkit-app-region:no-drag]">
         <button onClick={() => go("settings")} title={compact ? "Ajustes" : undefined} className={rowClass(section === "settings", compact)}>
-          <span className="grid size-[30px] shrink-0 place-items-center text-ink-2">
-            <Settings className="size-[18px]" />
-          </span>
+          <img src={settingsIcon} alt="" className="size-[30px] shrink-0 object-contain" draggable={false} />
           {!compact && <span className="flex-1 truncate">Ajustes</span>}
         </button>
       </div>
