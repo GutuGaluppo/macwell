@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import { AppWindow, RefreshCw, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AppWindow, ChevronLeft, RefreshCw, Search } from "lucide-react";
 import { useJob, useJobs } from "../../stores/jobs";
+import { useNav } from "../../stores/nav";
 import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
 import { AppsLoader } from "../../components/loaders";
+import { ModuleStage } from "../../components/ModuleStage";
+import { BentoButton, ResultsBento } from "../../components/ResultsBento";
+import appsHero from "../../assets/icons/aplicativos-hd.webp";
 import { useHome } from "../scanner/ScannerPage";
 import { formatAge, formatBytes, formatCount, shortPath } from "../../lib/format";
 import { AppIcon } from "./shared";
 import { UninstallDialog } from "./UninstallDialog";
-import type { AppInfo, AppsResult } from "../../types";
+import type { AppInfo, AppsResult, OrphansResult, UpdatesResult } from "../../types";
 
 const MODULE = "apps";
 const UNUSED_DAYS = 180;
@@ -15,21 +19,19 @@ const UNUSED_DAYS = 180;
 type Sort = "size" | "name" | "lastUsed";
 type Filter = "all" | "unused" | "appStore";
 
-export function AppsPage() {
+const isUnused = (a: AppInfo) => !a.systemApp && (a.lastUsedAt ?? 0) < Date.now() - UNUSED_DAYS * 86_400_000;
+
+function AppsList({ initialFilter, onBack }: { initialFilter: Filter; onBack: () => void }) {
   const home = useHome();
   const job = useJob<AppsResult>(MODULE);
   const start = useJobs((s) => s.start);
   const update = useJobs((s) => s.update);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("size");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(initialFilter);
   const [target, setTarget] = useState<AppInfo | null>(null);
   const r = job.result;
   const running = job.status === "running";
-
-  useEffect(() => {
-    if (job.status === "idle") start(MODULE, "start_app_list", {});
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const apps = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -61,9 +63,14 @@ export function AppsPage() {
         title="Aplicativos"
         subtitle="Apps em /Applications e ~/Applications, com tamanho e último uso. Desinstalar leva junto os arquivos do app em ~/Library, com a prévia de cada um."
         actions={
-          <Button variant="ghost" icon={<RefreshCw className="size-3.5" />} busy={running} onClick={() => start(MODULE, "start_app_list", {})}>
-            Atualizar
-          </Button>
+          <>
+            <Button variant="ghost" icon={<ChevronLeft className="size-3.5" />} onClick={onBack}>
+              Voltar aos resultados
+            </Button>
+            <Button variant="ghost" icon={<RefreshCw className="size-3.5" />} busy={running} onClick={() => start(MODULE, "start_app_list", {})}>
+              Atualizar
+            </Button>
+          </>
         }
       />
       <div className="space-y-4 px-8 pb-10">
@@ -161,5 +168,122 @@ export function AppsPage() {
         />
       )}
     </div>
+  );
+}
+
+const JOBS: { module: string; command: string; args: Record<string, unknown> }[] = [
+  { module: MODULE, command: "start_app_list", args: {} },
+  { module: "leftovers", command: "start_orphan_scan", args: {} },
+  // Offline only: the online check asks for consent on the Atualizações page.
+  { module: "updates", command: "start_update_check", args: { online: false } },
+];
+
+// Intro, scan and results around the module's three analyses. Nothing runs until Analisar.
+export function AppsPage() {
+  const { start, cancel, reset } = useJobs();
+  const apps = useJob<AppsResult>(MODULE);
+  const leftovers = useJob<OrphansResult>("leftovers");
+  const updates = useJob<UpdatesResult>("updates");
+  const go = useNav((s) => s.go);
+  const [list, setList] = useState<Filter | null>(null);
+
+  const anyRunning = [apps, leftovers, updates].some((j) => j.status === "running");
+  const phase = anyRunning ? "scanning" : apps.status === "done" || apps.status === "failed" ? "results" : "intro";
+  const scan = () => JOBS.forEach((j) => start(j.module, j.command, j.args));
+
+  const all = apps.result?.apps ?? [];
+  const unused = all.filter(isUnused);
+  const unusedSize = unused.reduce((s, a) => s + a.size, 0);
+  const withSource = (updates.result?.apps ?? []).filter((a) => a.source !== "none");
+  const pending = withSource.filter((a) => a.updateAvailable);
+  const checked = !!updates.result?.checkedOnline;
+  const icons = (list: { path: string }[], size: number) => (
+    <span className="flex items-center gap-3">
+      {list.slice(0, 3).map((a) => (
+        <AppIcon key={a.path} path={a.path} size={size} />
+      ))}
+    </span>
+  );
+
+  return (
+    <ModuleStage
+      phase={phase}
+      title="Aplicativos"
+      hero={appsHero}
+      intro="Veja o que está instalado, o que não é usado há meses e o que apps já removidos deixaram para trás. Nada é removido sem a sua confirmação."
+      scanning="Procurando aplicativos…"
+      detail={apps.status === "running" && apps.stage ? `Medindo os apps (${formatCount(apps.stage.done)} de ${formatCount(apps.stage.total)})` : "Lendo apps, atualizações e restos"}
+      onScan={scan}
+      onStop={() => JOBS.forEach((j) => cancel(j.module))}
+      onBack={() => {
+        setList(null);
+        JOBS.forEach((j) => reset(j.module));
+      }}
+    >
+      {list ? (
+        <div className="h-full overflow-y-auto">
+          <AppsList initialFilter={list} onBack={() => setList(null)} />
+        </div>
+      ) : (
+        <>
+          {apps.status === "failed" && (
+            <div className="px-8">
+              <ErrorNote>{apps.error}</ErrorNote>
+            </div>
+          )}
+          <ResultsBento
+            headline={`Encontramos ${formatCount(all.length)} apps no seu Mac.`}
+            pill={<BentoButton onClick={() => setList("all")}>Gerenciar meus aplicativos</BentoButton>}
+            extra={
+              <BentoButton onClick={scan}>
+                <span className="inline-flex items-center gap-1.5">
+                  <RefreshCw className="size-3.5" /> Atualizar
+                </span>
+              </BentoButton>
+            }
+            tiles={[
+              {
+                id: "updates",
+                title: checked ? `${formatCount(pending.length)} ${pending.length === 1 ? "atualização disponível" : "atualizações disponíveis"}` : `${formatCount(withSource.length)} apps com fonte de atualização`,
+                description: checked ? "Atualize seus apps para ter os recursos e correções mais recentes." : "Verifique online para comparar a versão instalada com a mais recente.",
+                visual: icons(checked && pending.length ? pending : withSource, 72),
+                actions: (
+                  <BentoButton primary onClick={() => go("updates")}>
+                    {checked ? "Revisar" : "Verificar"}
+                  </BentoButton>
+                ),
+              },
+              {
+                id: "unused",
+                title: `${formatCount(unused.length)} apps sem uso há 6 meses`,
+                description: unused.length ? `Você pode não precisar deles, mas ocupam ${formatBytes(unusedSize)} no total.` : "Todos os seus apps foram abertos nos últimos 6 meses.",
+                visual: icons([...unused].sort((a, b) => b.size - a.size), 52),
+                actions: (
+                  <BentoButton primary disabled={!unused.length} onClick={() => setList("unused")}>
+                    Revisar
+                  </BentoButton>
+                ),
+              },
+              {
+                id: "leftovers",
+                title: `${formatBytes(leftovers.result?.totalSize ?? 0)} de restos de apps`,
+                description: "Arquivos em ~/Library de apps que não estão mais instalados.",
+                actions: (
+                  <BentoButton primary onClick={() => go("leftovers")}>
+                    Revisar
+                  </BentoButton>
+                ),
+              },
+              {
+                id: "all",
+                title: `${formatBytes(apps.result?.totalSize ?? 0)} em aplicativos`,
+                description: "Todos os apps instalados, com tamanho e último uso.",
+                actions: <BentoButton onClick={() => setList("all")}>Revisar</BentoButton>,
+              },
+            ]}
+          />
+        </>
+      )}
+    </ModuleStage>
   );
 }
