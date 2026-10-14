@@ -6,6 +6,8 @@ import { withBackupAck } from "../../stores/backupGate";
 import { api, errorMessage } from "../../lib/ipc";
 import { Badge, Button, Card, ErrorNote, PageHeader } from "../../components/ui";
 import { Modal, ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
+import { ModuleStage } from "../../components/ModuleStage";
+import limpezaHero from "../../assets/icons/limpeza-hd.webp";
 import { useHome } from "../scanner/ScannerPage";
 import { formatBytes, formatCount, shortPath } from "../../lib/format";
 import type { Risk, RuleResult } from "../../types";
@@ -156,7 +158,37 @@ function AddRuleDialog({ onClose, home }: { onClose: () => void; home?: string }
   );
 }
 
+// Intro, scan and results around the rule list: nothing is measured until the user presses Analisar.
 export function AdvancedCleanupPage() {
+  const qc = useQueryClient();
+  const [started, setStarted] = useState(false);
+  const { data, isFetching, error } = useQuery({ queryKey: ["cleanupRules"], queryFn: api.cleanupRules, staleTime: 0, enabled: started });
+  const phase = !started ? "intro" : data || error ? "results" : "scanning";
+  return (
+    <ModuleStage
+      phase={phase}
+      title="Limpeza"
+      hero={limpezaHero}
+      intro="Encontre caches, registros e sobras de ferramentas que ocupam espaço sem precisar. Nada é removido sem a sua confirmação."
+      scanning="Procurando lixo…"
+      detail={isFetching ? "Medindo o tamanho de cada regra" : undefined}
+      scanLabel="Analisar"
+      onScan={() => setStarted(true)}
+      onStop={() => {
+        qc.cancelQueries({ queryKey: ["cleanupRules"] });
+        setStarted(false);
+      }}
+      onBack={() => {
+        qc.removeQueries({ queryKey: ["cleanupRules"] });
+        setStarted(false);
+      }}
+    >
+      <CleanupResults />
+    </ModuleStage>
+  );
+}
+
+function CleanupResults() {
   const home = useHome();
   const qc = useQueryClient();
   const { data, isFetching, error, refetch } = useQuery({ queryKey: ["cleanupRules"], queryFn: api.cleanupRules, staleTime: 0 });

@@ -497,7 +497,10 @@ const rule = (id: string, group: string, title: string, description: string, ris
   items: items.map(([p, size, blocked, system]) => ({ path: `${HOME}/${p}`, size, blocked, system, selected: risk === "low" && !blocked && !system && group !== "browser" })),
   size: items.reduce((s, i) => s + i[1], 0), blockedBy: [], unavailable: false, ...extra,
 });
-registerMock("cleanup_rules", (): RulesReport => ({
+// Slow like a real measurement, so the scanning screen can be checked.
+registerMock("cleanup_rules", async (): Promise<RulesReport> => {
+  await new Promise((r) => setTimeout(r, 2500));
+  return {
   fullDiskAccess: false,
   custom: [{ id: "c1", title: "Exportações do Figma", folder: "Projects/exports", risk: "medium" }],
   results: [
@@ -511,7 +514,8 @@ registerMock("cleanup_rules", (): RulesReport => ({
     rule("mail-downloads", "mail", "Mail: anexos abertos", "Cópias de anexos que você abriu no Mail.", "low", [], { unavailable: true }),
     rule("custom:c1", "custom", "Exportações do Figma", "", "medium", [["Projects/exports/v1", 420e6, null, false], ["Projects/exports/v2", 380e6, null, false]]),
   ],
-} as unknown as RulesReport));
+  } as unknown as RulesReport;
+});
 registerMock("run_cleanup_rules", ({ items }) => (items as { path: string; size: number }[]).map((i) => ({ path: i.path, size: i.size, ok: true, error: null })));
 registerMock("add_custom_rule", () => null);
 registerMock("remove_custom_rule", () => null);
