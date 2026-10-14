@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BatteryCharging, BatteryMedium, Clock, Cpu, HardDrive, MemoryStick, Power } from "lucide-react";
+import { BatteryCharging, BatteryMedium, Clock, Cpu, HardDrive, X } from "lucide-react";
 import { api, errorMessage } from "../../lib/ipc";
-import { Button, Card, ErrorNote, PageHeader } from "../../components/ui";
+import { Button, Card, ErrorNote } from "../../components/ui";
+import { useNav } from "../../stores/nav";
+import { ModuleStage } from "../../components/ModuleStage";
+import { BentoButton, BentoIcon, ResultsBento } from "../../components/ResultsBento";
+import performanceHero from "../../assets/icons/desempenho-hd.webp";
 import { Modal } from "../../components/ReviewDialog";
-import { formatBytes, formatCount } from "../../lib/format";
+import { formatBytes } from "../../lib/format";
 import { AppIcon } from "../applications/shared";
-import type { AppUsage, ProcessCategory } from "../../types";
+import type { AppUsage, Health, ProcessCategory, ProcessList } from "../../types";
 
 const HISTORY = 60;
 
@@ -18,13 +22,14 @@ function duration(secs: number): string {
 }
 
 function Sparkline({ values, max = 100 }: { values: number[]; max?: number }) {
-  if (values.length < 2) return <div className="h-10" />;
+  if (values.length < 2) return <div className="h-[110px]" />;
   const w = 220;
   const h = 40;
-  const pts = values.map((v, i) => `${(i / (HISTORY - 1)) * w},${h - (Math.min(v, max) / max) * (h - 2) - 1}`).join(" ");
+  const last = values.length - 1;
+  const pts = values.map((v, i) => `${(i / last) * w},${h - (Math.min(v, max) / max) * (h - 2) - 1}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-10 w-full" preserveAspectRatio="none" aria-hidden>
-      <polyline points={`0,${h} ${pts} ${((values.length - 1) / (HISTORY - 1)) * w},${h}`} fill="var(--accent-soft)" stroke="none" />
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-[110px] w-full" preserveAspectRatio="none" aria-hidden>
+      <polyline points={`0,${h} ${pts} ${w},${h}`} fill="var(--accent-soft)" stroke="none" />
       <polyline points={pts} fill="none" stroke="var(--accent)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -39,41 +44,21 @@ function Meter({ value, tone }: { value: number; tone?: string }) {
   );
 }
 
-function Tile({ icon, label, value, detail, children }: { icon: ReactNode; label: string; value: ReactNode; detail?: ReactNode; children?: ReactNode }) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-[12px] font-medium text-ink-3 [&_svg]:size-4">
-        {icon} {label}
-      </div>
-      <div className="tabular mt-2 text-[22px] font-semibold">{value}</div>
-      {detail && <div className="mt-0.5 text-[12px] text-ink-3">{detail}</div>}
-      {children && <div className="mt-3">{children}</div>}
-    </Card>
-  );
-}
-
 const categories: { id: ProcessCategory; label: string; note: string }[] = [
   { id: "application", label: "Aplicativos", note: "Apps que você abriu, com os processos auxiliares de cada um somados." },
   { id: "background", label: "Em segundo plano", note: "Outros processos da sua conta: agentes, ajudantes e ferramentas de linha de comando." },
   { id: "system", label: "Sistema", note: "Processos do macOS e de outras contas. Não podem ser encerrados por aqui." },
 ];
 
-export function PerformancePage() {
+// The process table, in a dialog: apps with their helpers added up, background and system processes.
+function ProcessesModal({ procs, onClose }: { procs: ProcessList; onClose: () => void }) {
   const qc = useQueryClient();
-  const { data: h, error } = useQuery({ queryKey: ["health"], queryFn: api.health, refetchInterval: 2000 });
-  const { data: procs } = useQuery({ queryKey: ["processes"], queryFn: api.processList, refetchInterval: 5000 });
-  const [cpuHistory, setCpuHistory] = useState<number[]>([]);
   const [tab, setTab] = useState<ProcessCategory>("application");
   const [quitting, setQuitting] = useState<AppUsage | null>(null);
   const [quitError, setQuitError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (h) setCpuHistory((prev) => [...prev, h.cpu].slice(-HISTORY));
-  }, [h]);
-
   const rows: (AppUsage & { key: string; user?: string | null })[] = useMemo(() => {
-    if (!procs) return [];
     if (tab === "application")
       return procs.apps
         .filter((a) => a.appPath && procs.processes.some((p) => p.appPath === a.appPath && p.category === "application"))
@@ -100,56 +85,12 @@ export function PerformancePage() {
     }
   };
 
-  const mem = h ? h.memoryUsed / h.memoryTotal : 0;
-  const disk = h ? (h.diskTotal - h.diskFree) / Math.max(h.diskTotal, 1) : 0;
-
   return (
-    <div className="h-full overflow-y-auto">
-      <PageHeader title="Desempenho" subtitle="Atualiza a cada 2 segundos enquanto a janela está visível, e para quando ela está escondida." />
-      <div className="space-y-5 px-8 pb-10">
-        {error && <ErrorNote>{errorMessage(error)}</ErrorNote>}
-        <div className="grid grid-cols-3 gap-4">
-          <Tile icon={<Cpu />} label="CPU" value={h ? `${Math.round(h.cpu)}%` : "—"} detail={h && `${h.cores} núcleos · carga ${h.loadAverage[0].toFixed(2).replace(".", ",")}`}>
-            <Sparkline values={cpuHistory} />
-          </Tile>
-          <Tile
-            icon={<MemoryStick />}
-            label="Memória"
-            value={h ? formatBytes(h.memoryUsed) : "—"}
-            detail={h && `de ${formatBytes(h.memoryTotal)} · ${formatBytes(h.memoryAvailable)} disponíveis`}
-          >
-            <Meter value={mem} />
-            {h && h.swapTotal > 0 && (
-              <div className="mt-2 text-[11.5px] text-ink-3">
-                Swap: {formatBytes(h.swapUsed)} de {formatBytes(h.swapTotal)}
-                {h.swapUsed > 2e9 ? " · o Mac está usando o disco como memória" : ""}
-              </div>
-            )}
-          </Tile>
-          <Tile icon={<HardDrive />} label="Disco" value={h ? formatBytes(h.diskFree) : "—"} detail={h && `livres de ${formatBytes(h.diskTotal)}`}>
-            <Meter value={disk} />
-          </Tile>
-          <Tile
-            icon={h?.battery?.charging ? <BatteryCharging /> : <BatteryMedium />}
-            label="Bateria"
-            value={h?.battery ? `${h.battery.percent}%` : "—"}
-            detail={
-              h?.battery
-                ? [h.battery.charging ? "carregando" : h.battery.onAc ? "na tomada" : "na bateria", h.battery.minutesRemaining ? duration(h.battery.minutesRemaining * 60) + (h.battery.charging ? " para carregar" : " restantes") : null]
-                    .filter(Boolean)
-                    .join(" · ")
-                : "Este Mac não tem bateria"
-            }
-          >
-            {h?.battery && <Meter value={h.battery.percent / 100} tone={h.battery.percent < 15 ? "bg-danger" : "bg-safe"} />}
-          </Tile>
-          <Tile icon={<Clock />} label="Ligado há" value={h ? duration(h.uptime) : "—"} detail="desde o último reinício" />
-          <Tile icon={<Power />} label="Apps abertos" value={procs ? formatCount(procs.apps.filter((a) => a.canQuit).length) : "—"} detail={procs && `${formatCount(procs.processes.length)} processos no total`} />
-        </div>
-
-        <div>
-          <div className="mb-2 flex items-center gap-3">
-            <h2 className="text-[13px] font-semibold">Processos por memória</h2>
+    <>
+      <Modal onClose={onClose} width={760}>
+        <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-[16px] font-semibold">Processos por memória</h2>
             <div className="inline-flex rounded-lg glass p-0.5">
               {categories.map((c) => (
                 <button
@@ -162,7 +103,12 @@ export function PerformancePage() {
               ))}
             </div>
           </div>
-          <p className="mb-2 text-[12px] text-ink-3">{categories.find((c) => c.id === tab)?.note}</p>
+          <button className="rounded p-1 text-ink-3 hover:bg-surface-2 hover:text-ink" onClick={onClose} aria-label="Fechar">
+            <X className="size-4" />
+          </button>
+        </div>
+        <p className="px-6 pb-2 text-[12px] text-ink-3">{categories.find((c) => c.id === tab)?.note}</p>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5">
           <Card className="divide-y divide-line">
             {rows.map((r) => (
               <div key={r.key} className="group grid grid-cols-[28px_minmax(0,1fr)_70px_90px_80px] items-center gap-3 px-4 py-1.5 text-[12.5px]">
@@ -185,7 +131,7 @@ export function PerformancePage() {
             ))}
           </Card>
         </div>
-      </div>
+      </Modal>
       {quitting && (
         <Modal onClose={busy ? undefined : () => setQuitting(null)} width={440}>
           <div className="p-6">
@@ -207,6 +153,131 @@ export function PerformancePage() {
           </div>
         </Modal>
       )}
+    </>
+  );
+}
+
+// A donut gauge for the tall tile.
+function Ring({ value, label }: { value: number; label: string }) {
+  const r = 70;
+  const c = 2 * Math.PI * r;
+  const v = Math.max(0.02, Math.min(1, value));
+  return (
+    <div className="relative grid size-[190px] place-items-center">
+      <svg viewBox="0 0 180 180" className="absolute inset-0 -rotate-90">
+        <circle cx="90" cy="90" r={r} fill="none" stroke="rgb(255 255 255 / 0.14)" strokeWidth="14" />
+        <circle cx="90" cy="90" r={r} fill="none" stroke="var(--tint)" strokeWidth="14" strokeLinecap="round" strokeDasharray={`${c * v} ${c}`} className="transition-[stroke-dasharray] duration-700" />
+      </svg>
+      <div className="text-center">
+        <div className="tabular text-[34px] leading-none font-semibold">{Math.round(value * 100)}%</div>
+        <div className="mt-1 text-[12px] text-ink-2">{label}</div>
+      </div>
     </div>
+  );
+}
+
+function verdict(h: Health): string {
+  if (h.memoryUsed / h.memoryTotal > 0.92 || h.swapUsed > 4e9) return "Seu Mac está com pouca memória.";
+  if (h.cpu > 85) return "Seu Mac está muito ocupado agora.";
+  if (h.diskFree / Math.max(h.diskTotal, 1) < 0.08) return "Seu disco está quase cheio.";
+  return "Seu Mac está funcionando bem.";
+}
+
+function PerformanceResults({ h, procs, cpuHistory }: { h: Health; procs?: ProcessList; cpuHistory: number[] }) {
+  const go = useNav((s) => s.go);
+  const [showProcs, setShowProcs] = useState(false);
+  const mem = h.memoryUsed / h.memoryTotal;
+  const disk = (h.diskTotal - h.diskFree) / Math.max(h.diskTotal, 1);
+  const bat = h.battery;
+  const review = (
+    <BentoButton primary disabled={!procs} onClick={() => setShowProcs(true)}>
+      Revisar
+    </BentoButton>
+  );
+  return (
+    <>
+      <ResultsBento
+        headline={verdict(h)}
+        pill={<BentoButton onClick={() => setShowProcs(true)}>Ver processos</BentoButton>}
+        extra={<span className="text-[12px] text-ink-3">Atualiza a cada 2 segundos</span>}
+        tiles={[
+          {
+            id: "memory",
+            title: `${formatBytes(h.memoryUsed)} de memória em uso`,
+            description: `de ${formatBytes(h.memoryTotal)} · ${formatBytes(h.memoryAvailable)} disponíveis${h.swapTotal > 0 ? ` · swap ${formatBytes(h.swapUsed)}` : ""}${h.swapUsed > 2e9 ? ". O Mac está usando o disco como memória." : ""}`,
+            visual: <Ring value={mem} label="em uso" />,
+            actions: review,
+          },
+          {
+            id: "cpu",
+            title: `${Math.round(h.cpu)}% de CPU`,
+            description: `${h.cores} núcleos · carga ${h.loadAverage[0].toFixed(2).replace(".", ",")} · ligado há ${duration(h.uptime)}`,
+            visual: <BentoIcon><Cpu /></BentoIcon>,
+            body: <Sparkline values={cpuHistory} />,
+            actions: review,
+          },
+          {
+            id: "disk",
+            title: `${formatBytes(h.diskFree)} livres no disco`,
+            description: `de ${formatBytes(h.diskTotal)}`,
+            visual: <BentoIcon size={48}><HardDrive /></BentoIcon>,
+            body: <Meter value={disk} />,
+            actions: <BentoButton primary onClick={() => go("spaceMap")}>Mapa de espaço</BentoButton>,
+          },
+          {
+            id: "battery",
+            title: bat ? `${bat.percent}% de bateria` : "Sem bateria",
+            description: bat
+              ? [bat.charging ? "carregando" : bat.onAc ? "na tomada" : "na bateria", bat.minutesRemaining ? duration(bat.minutesRemaining * 60) + (bat.charging ? " para carregar" : " restantes") : null].filter(Boolean).join(" · ")
+              : "Este Mac não tem bateria.",
+            visual: <BentoIcon size={48}>{bat?.charging ? <BatteryCharging /> : bat ? <BatteryMedium /> : <Clock />}</BentoIcon>,
+            body: bat ? <Meter value={bat.percent / 100} tone={bat.percent < 15 ? "bg-danger" : "bg-safe"} /> : undefined,
+            actions: <></>,
+          },
+        ]}
+      />
+      {showProcs && procs && <ProcessesModal procs={procs} onClose={() => setShowProcs(false)} />}
+    </>
+  );
+}
+
+// Intro, first reading and live results. The health and process queries only run once the user
+// presses Analisar, and stop when they go back.
+export function PerformancePage() {
+  const [started, setStarted] = useState(false);
+  const { data: h, error } = useQuery({ queryKey: ["health"], queryFn: api.health, refetchInterval: 2000, enabled: started });
+  const { data: procs } = useQuery({ queryKey: ["processes"], queryFn: api.processList, refetchInterval: 5000, enabled: started });
+  const [cpuHistory, setCpuHistory] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (h) setCpuHistory((prev) => [...prev, h.cpu].slice(-HISTORY));
+  }, [h]);
+
+  const phase = !started ? "intro" : h || error ? "results" : "scanning";
+  const reset = () => {
+    setStarted(false);
+    setCpuHistory([]);
+  };
+
+  return (
+    <ModuleStage
+      phase={phase}
+      title="Desempenho"
+      hero={performanceHero}
+      intro="Veja em tempo real como o Mac está usando CPU, memória, disco e bateria, e quais apps pesam mais."
+      scanning="Medindo o desempenho…"
+      detail="Lendo CPU, memória e processos"
+      onScan={() => setStarted(true)}
+      onStop={reset}
+      onBack={reset}
+      backLabel="Voltar"
+    >
+      {error && (
+        <div className="px-8">
+          <ErrorNote>{errorMessage(error)}</ErrorNote>
+        </div>
+      )}
+      {h && <PerformanceResults h={h} procs={procs} cpuHistory={cpuHistory} />}
+    </ModuleStage>
   );
 }

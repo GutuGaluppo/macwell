@@ -6,6 +6,8 @@ export type BentoTile = {
   description?: ReactNode;
   /** Illustration: large and centred on the tall tile, small in the corner on the others. */
   visual?: ReactNode;
+  /** Live content under the description (a meter, a chart). */
+  body?: ReactNode;
   actions: ReactNode;
 };
 
@@ -38,6 +40,7 @@ function Tile({ tile, variant, className = "" }: { tile: BentoTile; variant: "ta
       {variant !== "tall" && tile.visual && <div className="pointer-events-none absolute top-4 right-4">{tile.visual}</div>}
       <h2 className={`font-semibold leading-snug tracking-tight text-ink ${variant === "small" ? "max-w-[78%] text-[17px]" : "max-w-[70%] text-[19px]"}`}>{tile.title}</h2>
       {tile.description && <p className={`mt-1.5 text-[13px] leading-snug text-ink-2 ${variant === "small" ? "line-clamp-3 max-w-[78%]" : "max-w-[78%]"}`}>{tile.description}</p>}
+      {tile.body && <div className="mt-3">{tile.body}</div>}
       {variant === "tall" && <div className="pointer-events-none flex min-h-0 flex-1 items-center justify-center">{tile.visual}</div>}
       <div className="mt-auto flex items-center justify-end gap-2 pt-4">{tile.actions}</div>
     </section>
