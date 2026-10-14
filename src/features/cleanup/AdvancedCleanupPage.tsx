@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ChevronDown, ChevronRight, Info, Lock, Plus, RefreshCw, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Globe, Info, Lock, Mail, Plus, RefreshCw, ScrollText, Sparkles, Trash2, X, Hammer, Clock } from "lucide-react";
 import { withBackupAck } from "../../stores/backupGate";
 import { api, errorMessage } from "../../lib/ipc";
-import { Badge, Button, Card, ErrorNote, PageHeader } from "../../components/ui";
-import { Modal, ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
+import { Badge, Button, Card, ErrorNote } from "../../components/ui";
+import { Modal, ReviewDialog } from "../../components/ReviewDialog";
+import { BentoButton, BentoIcon, ResultsBento, type BentoTile } from "../../components/ResultsBento";
 import { ModuleStage } from "../../components/ModuleStage";
 import limpezaHero from "../../assets/icons/limpeza-hd.webp";
 import { useHome } from "../scanner/ScannerPage";
@@ -188,12 +189,24 @@ export function AdvancedCleanupPage() {
   );
 }
 
+type TileGroup = { id: string; title: string; description: string; groups: RuleResult["group"][]; icons: React.ReactNode[] };
+
+// The four tiles of the results screen, each covering one or more rule groups.
+const tileGroups: TileGroup[] = [
+  { id: "user", title: "de caches e registros", description: "Arquivos temporários e registros que os apps recriam quando precisam.", groups: ["user"], icons: [<Clock key="a" />, <Sparkles key="b" />, <ScrollText key="c" />] },
+  { id: "developer", title: "de ferramentas de desenvolvimento", description: "Builds intermediários e caches de ferramentas. São refeitos no próximo uso.", groups: ["developer"], icons: [<Hammer key="a" />] },
+  { id: "browser", title: "de navegadores", description: "Caches e histórico. O navegador precisa estar fechado.", groups: ["browser"], icons: [<Globe key="a" />] },
+  { id: "other", title: "do Mail e das suas regras", description: "Anexos abertos e as pastas das regras que você criou.", groups: ["mail", "custom"], icons: [<Mail key="a" />] },
+];
+
 function CleanupResults() {
   const home = useHome();
   const qc = useQueryClient();
-  const { data, isFetching, error, refetch } = useQuery({ queryKey: ["cleanupRules"], queryFn: api.cleanupRules, staleTime: 0 });
+  const { data, isFetching, error, refetch } = useQuery({ queryKey: ["cleanupRules"], queryFn: api.cleanupRules, staleTime: Infinity });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [review, setReview] = useState(false);
+  // Which tiles are being looked at ("all" = every group) and which are being confirmed for removal.
+  const [detail, setDetail] = useState<string | null>(null);
+  const [review, setReview] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -210,81 +223,164 @@ function CleanupResults() {
       return next;
     });
 
+  const rulesOf = (scope: string) => {
+    const ids = scope === "all" ? groups.map((g) => g.id) : (tileGroups.find((t) => t.id === scope)?.groups ?? []);
+    return (data?.results ?? []).filter((r) => ids.includes(r.group));
+  };
+
   // One entry per path (a path can match two rules, e.g. a Chrome cache inside ~/Library/Caches).
-  const chosen = useMemo(() => {
+  const chosenFor = (scope: string) => {
     const seen = new Map<string, { ruleId: string; path: string; size: number; title: string }>();
-    for (const r of data?.results ?? [])
+    for (const r of rulesOf(scope))
       for (const i of r.items) if (selected.has(`${r.id}|${i.path}`) && !seen.has(i.path)) seen.set(i.path, { ruleId: r.id, path: i.path, size: i.size, title: r.title });
     // Drop paths inside another chosen path: the parent already covers them.
     const paths = [...seen.keys()];
     return [...seen.values()].filter((x) => !paths.some((p) => p !== x.path && x.path.startsWith(p + "/")));
-  }, [data, selected]);
-  const bytes = chosen.reduce((s, i) => s + i.size, 0);
+  };
+  const sizeOf = (scope: string) => rulesOf(scope).reduce((s, r) => s + r.size, 0);
+
+  const tile = (t: TileGroup, big: boolean): BentoTile => {
+    const rules = rulesOf(t.id);
+    const chosen = chosenFor(t.id);
+    return {
+      id: t.id,
+      title: `${formatBytes(sizeOf(t.id))} ${t.title}`,
+      description: t.description,
+      visual: (
+        <span className="flex items-center gap-3">
+          {t.icons.map((icon, i) => (
+            <BentoIcon key={i} size={big ? (t.icons.length > 1 && i === 1 ? 92 : 62) : 48}>
+              {icon}
+            </BentoIcon>
+          ))}
+        </span>
+      ),
+      actions: (
+        <>
+          <BentoButton onClick={() => setDetail(t.id)} disabled={!rules.length}>
+            Revisar
+          </BentoButton>
+          <BentoButton primary onClick={() => setReview(t.id)} disabled={!chosen.length}>
+            Limpar
+          </BentoButton>
+        </>
+      ),
+    };
+  };
+
+  const total = sizeOf("all");
+  const detailRules = detail ? rulesOf(detail) : [];
+  const reviewItems = review ? chosenFor(review) : [];
 
   return (
-    <div className="h-full overflow-y-auto">
-      <PageHeader
-        title="Limpeza avançada"
-        subtitle="Regras para caches, registros, ferramentas de desenvolvimento, navegadores e Mail. Tudo vai para a Lixeira (ou para a Quarentena, se você escolheu em Ajustes); apps abertos bloqueiam a limpeza dos próprios dados."
-        actions={
-          <>
-            <Button variant="ghost" icon={<RefreshCw className="size-3.5" />} busy={isFetching} onClick={() => refetch()}>
-              Atualizar
-            </Button>
-            <Button icon={<Plus className="size-3.5" />} onClick={() => setAdding(true)}>
-              Nova regra
-            </Button>
-          </>
-        }
-      />
-      <div className="space-y-6 px-8 pb-4">
-        {error && <ErrorNote>{errorMessage(error)}</ErrorNote>}
-        {!data && isFetching && <div className="text-ink-3">Calculando o tamanho de cada regra…</div>}
-        {data &&
-          groups.map((g) => {
-            const rules = data.results.filter((r) => r.group === g.id && (r.items.length > 0 || r.blockedBy.length > 0 || r.unavailable || g.id === "custom"));
-            if (!rules.length) return null;
-            return (
-              <section key={g.id} className="space-y-2">
-                <h2 className="text-[13px] font-semibold">{g.title}</h2>
-                {g.id === "browser" && (
-                  <p className="text-[12px] text-ink-3">O navegador precisa estar fechado. O Safari é protegido pelo macOS e não é limpo por aqui; use Safari → Limpar Histórico.</p>
-                )}
-                {rules.map((r) => (
-                  <RuleCard
-                    key={r.id}
-                    rule={r}
-                    selected={selected}
-                    setMany={setMany}
-                    home={home}
-                    onRemoveCustom={
-                      r.group === "custom"
-                        ? async () => {
-                            await api.removeCustomRule(r.id.replace(/^custom:/, ""));
-                            qc.invalidateQueries({ queryKey: ["cleanupRules"] });
-                          }
-                        : undefined
-                    }
-                  />
-                ))}
-              </section>
-            );
-          })}
-        {data && !data.results.some((r) => r.group === "custom") && (
-          <p className="text-[12px] text-ink-3">Crie regras para pastas que você limpa sempre, como builds antigos ou exportações temporárias.</p>
-        )}
-        {data && <SelectionBar count={chosen.length} bytes={bytes} onReview={() => setReview(true)} />}
-      </div>
+    <>
+      {error && (
+        <div className="px-8">
+          <ErrorNote>{errorMessage(error)}</ErrorNote>
+        </div>
+      )}
+      {data && (
+        <ResultsBento
+          headline={total > 0 ? `Há ${formatBytes(total)} de lixo no seu Mac.` : "Seu Mac está sem lixo para limpar."}
+          pill={
+            <BentoButton onClick={() => setDetail("all")}>Revisar tudo</BentoButton>
+          }
+          extra={
+            <>
+              <BentoButton onClick={() => setAdding(true)}>
+                <span className="inline-flex items-center gap-1.5">
+                  <Plus className="size-3.5" /> Nova regra
+                </span>
+              </BentoButton>
+              <BentoButton onClick={() => refetch()} disabled={isFetching}>
+                <span className="inline-flex items-center gap-1.5">
+                  <RefreshCw className={`size-3.5 ${isFetching ? "animate-spin" : ""}`} /> Atualizar
+                </span>
+              </BentoButton>
+            </>
+          }
+          tiles={[tile(tileGroups[0], true), tile(tileGroups[1], false), tile(tileGroups[2], false), tile(tileGroups[3], false)]}
+        />
+      )}
+
+      {detail && data && (
+        <Modal onClose={() => setDetail(null)} width={760}>
+          <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
+            <div>
+              <h2 className="text-[16px] font-semibold">{detail === "all" ? "Tudo o que pode ser limpo" : tileGroups.find((t) => t.id === detail)?.title.replace(/^de /, "").replace(/^./, (c) => c.toUpperCase())}</h2>
+              <p className="mt-1 text-[12.5px] text-ink-2">Tudo vai para a Lixeira (ou para a Quarentena, se você escolheu em Ajustes); apps abertos bloqueiam a limpeza dos próprios dados.</p>
+            </div>
+            <button className="rounded p-1 text-ink-3 hover:bg-surface-2 hover:text-ink" onClick={() => setDetail(null)} aria-label="Fechar">
+              <X className="size-4" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-4">
+            {(detail === "all" ? groups : groups.filter((g) => tileGroups.find((t) => t.id === detail)?.groups.includes(g.id))).map((g) => {
+              const rules = detailRules.filter((r) => r.group === g.id && (r.items.length > 0 || r.blockedBy.length > 0 || r.unavailable || g.id === "custom"));
+              if (!rules.length) return null;
+              return (
+                <section key={g.id} className="space-y-2">
+                  <h3 className="text-[13px] font-semibold">{g.title}</h3>
+                  {g.id === "browser" && (
+                    <p className="text-[12px] text-ink-3">O navegador precisa estar fechado. O Safari é protegido pelo macOS e não é limpo por aqui; use Safari → Limpar Histórico.</p>
+                  )}
+                  {rules.map((r) => (
+                    <RuleCard
+                      key={r.id}
+                      rule={r}
+                      selected={selected}
+                      setMany={setMany}
+                      home={home}
+                      onRemoveCustom={
+                        r.group === "custom"
+                          ? async () => {
+                              await api.removeCustomRule(r.id.replace(/^custom:/, ""));
+                              qc.invalidateQueries({ queryKey: ["cleanupRules"] });
+                            }
+                          : undefined
+                      }
+                    />
+                  ))}
+                </section>
+              );
+            })}
+            {!detailRules.some((r) => r.group === "custom") && (detail === "all" || detail === "other") && (
+              <p className="text-[12px] text-ink-3">Crie regras para pastas que você limpa sempre, como builds antigos ou exportações temporárias.</p>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-3 border-t border-line px-6 py-3">
+            <span className="text-[12.5px] text-ink-2">
+              <span className="font-medium text-ink">{formatCount(chosenFor(detail).length)}</span> selecionados ·{" "}
+              <span className="tabular font-medium text-ink">{formatBytes(chosenFor(detail).reduce((s, i) => s + i.size, 0))}</span>
+            </span>
+            <div className="flex gap-2">
+              <Button onClick={() => setDetail(null)}>Fechar</Button>
+              <Button
+                variant="primary"
+                disabled={!chosenFor(detail).length}
+                icon={<Trash2 className="size-3.5" />}
+                onClick={() => {
+                  setReview(detail);
+                  setDetail(null);
+                }}
+              >
+                Revisar e limpar…
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {review && (
         <ReviewDialog
-          items={chosen.map((c) => ({ path: c.path, size: c.size, label: c.title }))}
+          items={reviewItems.map((c) => ({ path: c.path, size: c.size, label: c.title }))}
           home={home}
-          execute={() => withBackupAck((ack) => api.runCleanupRules(chosen.map(({ ruleId, path, size }) => ({ ruleId, path, size })), ack))}
-          onClose={() => setReview(false)}
+          execute={() => withBackupAck((ack) => api.runCleanupRules(reviewItems.map(({ ruleId, path, size }) => ({ ruleId, path, size })), ack))}
+          onClose={() => setReview(null)}
           onDone={() => qc.invalidateQueries({ queryKey: ["cleanupRules"] })}
         />
       )}
       {adding && <AddRuleDialog home={home} onClose={() => setAdding(false)} />}
-    </div>
+    </>
   );
 }
