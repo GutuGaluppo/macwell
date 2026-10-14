@@ -10,6 +10,7 @@ import aplicativos from "../assets/icons/aplicativos.webp";
 import minhaBagunca from "../assets/icons/minha-bagunca.webp";
 import mapaDeEspaco from "../assets/icons/mapa-de-espaco.webp";
 import scanner from "../assets/icons/scanner.webp";
+import projetos from "../assets/icons/projetos.webp";
 export { default as appIcon } from "../assets/icons/app-icon.webp";
 
 export type Module = {
@@ -58,7 +59,7 @@ export const modules: Module[] = [
     id: "dev",
     label: "Projetos",
     tagline: "Repositórios e builds",
-    icon: scanner, // placeholder until the module gets its own glass icon
+    icon: projetos,
     sections: [
       { id: "projects", label: "Projetos", job: "dev" },
       { id: "backup", label: "Backup" },
