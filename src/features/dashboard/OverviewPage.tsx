@@ -109,11 +109,9 @@ export function OverviewPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-6 gap-4">
-          {modules.map((m, i) => (
-            <div key={m.id} className={i < 3 ? "col-span-2" : "col-span-3"}>
-              <ModuleTile module={m} lastScan={lastScan(m)} />
-            </div>
+        <div className="grid grid-cols-3 gap-4">
+          {modules.map((m) => (
+            <ModuleTile key={m.id} module={m} lastScan={lastScan(m)} />
           ))}
         </div>
 
