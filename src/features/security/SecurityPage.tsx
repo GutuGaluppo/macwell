@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { FolderOpen, Info, ShieldQuestion } from "lucide-react";
+import { ChevronLeft, FileWarning, FolderOpen, Info, LogIn, Rocket, ShieldAlert } from "lucide-react";
 import { api } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
-import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar } from "../../components/ui";
-import { SecurityLoader } from "../../components/loaders";
+import { Badge, Button, Card, ErrorNote, PageHeader } from "../../components/ui";
+import { ModuleStage } from "../../components/ModuleStage";
+import { BentoButton, BentoIcon, ResultsBento } from "../../components/ResultsBento";
+import securityHero from "../../assets/icons/seguranca-hd.webp";
 import { useHome } from "../scanner/ScannerPage";
 import { formatCount, shortPath } from "../../lib/format";
 import { AppIcon } from "../applications/shared";
 import type { Finding, SecurityAudit, SignatureKind } from "../../types";
+
+type Tab = "persistence" | "apps";
 
 const MODULE = "security";
 
@@ -53,14 +57,12 @@ function Findings({ findings }: { findings: Finding[] }) {
   );
 }
 
-export function SecurityPage() {
+function AuditDetails({ initialTab, onBack }: { initialTab: Tab; onBack: () => void }) {
   const home = useHome();
   const job = useJob<SecurityAudit>(MODULE);
-  const start = useJobs((s) => s.start);
-  const [tab, setTab] = useState<"persistence" | "apps">("persistence");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [onlyNotes, setOnlyNotes] = useState(true);
   const r = job.result;
-  const running = job.status === "running";
   const items = (r?.persistence ?? []).filter((i) => !onlyNotes || i.findings.length);
   const apps = (r?.apps ?? []).filter((a) => !onlyNotes || a.findings.length);
 
@@ -70,28 +72,13 @@ export function SecurityPage() {
         title="Auditoria de segurança"
         subtitle="O que inicia sozinho no Mac e como os apps estão assinados. É uma auditoria experimental, não um antivírus: não detecta malware e não muda nada no sistema."
         actions={
-          <Button variant={r ? "secondary" : "primary"} busy={running} onClick={() => start(MODULE, "start_security_audit", {})}>
-            {r ? "Auditar de novo" : "Auditar"}
+          <Button variant="ghost" icon={<ChevronLeft className="size-3.5" />} onClick={onBack}>
+            Voltar aos resultados
           </Button>
         }
       />
       <div className="space-y-4 px-8 pb-10">
-        {job.status === "failed" && <ErrorNote>{job.error}</ErrorNote>}
-        {job.status === "idle" && (
-          <EmptyState icon={<ShieldQuestion className="size-6" />} title="Veja o que roda sem você abrir">
-            LaunchAgents e LaunchDaemons (itens de início de apps e serviços) e a assinatura de cada app em /Applications. Leva alguns segundos.
-          </EmptyState>
-        )}
-        {running && (
-          <Card className="p-5">
-            <SecurityLoader />
-            <div className="mb-3 text-[13px] font-medium">
-              {job.stage?.stage === "apps" ? `Verificando assinaturas (${formatCount(job.stage.done)} de ${formatCount(job.stage.total)})` : "Lendo itens de início"}
-            </div>
-            <ProgressBar value={job.stage?.stage === "apps" ? job.stage.done / Math.max(job.stage.total, 1) : undefined} indeterminate={job.stage?.stage !== "apps"} />
-          </Card>
-        )}
-        {r && !running && (
+        {r && (
           <>
             <div className="flex flex-wrap items-center gap-3">
               <div className="inline-flex rounded-lg glass p-0.5">
@@ -165,5 +152,123 @@ export function SecurityPage() {
         )}
       </div>
     </div>
+  );
+}
+
+const attention = (f: Finding[]) => f.some((x) => x.level === "attention");
+
+// Intro, scan and results around the audit. Nothing is read until the user presses Auditar.
+export function SecurityPage() {
+  const job = useJob<SecurityAudit>(MODULE);
+  const { start, cancel, reset } = useJobs();
+  const [view, setView] = useState<Tab | null>(null);
+  const r = job.result;
+  const phase = job.status === "running" ? "scanning" : job.status === "done" || job.status === "failed" ? "results" : "intro";
+
+  const persistence = r?.persistence ?? [];
+  const apps = r?.apps ?? [];
+  const notedItems = persistence.filter((i) => i.findings.length);
+  const notedApps = apps.filter((a) => a.findings.length);
+  const urgent = persistence.filter((i) => attention(i.findings)).length + apps.filter((a) => attention(a.findings)).length;
+  const unsigned = apps.filter((a) => a.signature.kind === "unsigned" || a.signature.kind === "invalid").length;
+  const byKind = Object.entries(
+    apps.reduce<Record<string, number>>((acc, a) => {
+      acc[a.signature.kind] = (acc[a.signature.kind] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).sort((x, y) => y[1] - x[1]);
+  const scan = () => start(MODULE, "start_security_audit", {});
+
+  return (
+    <ModuleStage
+      phase={phase}
+      title="Segurança"
+      hero={securityHero}
+      intro="Veja o que inicia sozinho no Mac e como cada app está assinado. É uma auditoria experimental, não um antivírus: não detecta malware e não muda nada no sistema."
+      scanLabel="Auditar"
+      scanning="Verificando o sistema…"
+      detail={job.stage?.stage === "apps" ? `Verificando assinaturas (${formatCount(job.stage.done)} de ${formatCount(job.stage.total)})` : "Lendo itens de início"}
+      onScan={scan}
+      onStop={() => {
+        cancel(MODULE);
+        reset(MODULE);
+      }}
+      onBack={() => {
+        setView(null);
+        reset(MODULE);
+      }}
+    >
+      {view ? (
+        <AuditDetails initialTab={view} onBack={() => setView(null)} />
+      ) : (
+        <>
+          {job.status === "failed" && (
+            <div className="px-8">
+              <ErrorNote>{job.error}</ErrorNote>
+            </div>
+          )}
+          {r && (
+            <ResultsBento
+              headline={urgent ? `${formatCount(urgent)} ${urgent === 1 ? "item merece" : "itens merecem"} atenção.` : "Nenhum item pede atenção."}
+              pill={<BentoButton onClick={() => setView("persistence")}>Ver todos os itens</BentoButton>}
+              extra={
+                <BentoButton onClick={scan}>Auditar de novo</BentoButton>
+              }
+              tiles={[
+                {
+                  id: "persistence",
+                  title: `${formatCount(notedItems.length)} de ${formatCount(persistence.length)} itens de início com observações`,
+                  description: "Programas que iniciam sozinhos com o Mac ou com a sua conta. Observação não significa que algo seja malicioso.",
+                  visual: <BentoIcon size={112}><Rocket /></BentoIcon>,
+                  actions: (
+                    <BentoButton primary onClick={() => setView("persistence")}>
+                      Revisar
+                    </BentoButton>
+                  ),
+                },
+                {
+                  id: "apps",
+                  title: `${formatCount(notedApps.length)} de ${formatCount(apps.length)} apps com observações`,
+                  description: "Assinatura de código e aprovação do Gatekeeper de cada app em /Applications.",
+                  visual: <BentoIcon size={56}><ShieldAlert /></BentoIcon>,
+                  body: (
+                    <div className="flex flex-wrap gap-1.5">
+                      {byKind.map(([kind, n]) => (
+                        <Badge key={kind}>
+                          {signatureLabel[kind as SignatureKind]} · {formatCount(n)}
+                        </Badge>
+                      ))}
+                    </div>
+                  ),
+                  actions: (
+                    <BentoButton primary onClick={() => setView("apps")}>
+                      Revisar
+                    </BentoButton>
+                  ),
+                },
+                {
+                  id: "unsigned",
+                  title: `${formatCount(unsigned)} ${unsigned === 1 ? "app sem" : "apps sem"} assinatura válida`,
+                  description: "Sem assinatura, ou com assinatura que não confere com os arquivos.",
+                  visual: <BentoIcon size={48}><FileWarning /></BentoIcon>,
+                  actions: (
+                    <BentoButton primary disabled={!unsigned} onClick={() => setView("apps")}>
+                      Revisar
+                    </BentoButton>
+                  ),
+                },
+                {
+                  id: "loginItems",
+                  title: "Itens de Início do sistema",
+                  description: "Para desativar um item, use Ajustes do Sistema ou desinstale o app que o instalou.",
+                  visual: <BentoIcon size={48}><LogIn /></BentoIcon>,
+                  actions: <BentoButton primary onClick={() => api.openSystemSettings("loginItems")}>Abrir</BentoButton>,
+                },
+              ]}
+            />
+          )}
+        </>
+      )}
+    </ModuleStage>
   );
 }
