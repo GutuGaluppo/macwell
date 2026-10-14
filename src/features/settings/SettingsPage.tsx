@@ -1,23 +1,16 @@
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Plus, X } from "lucide-react";
+import { EyeOff, MenuSquare, Plus, ShieldCheck, Trash2, X } from "lucide-react";
 import { api } from "../../lib/ipc";
-import { Button, Card, PageHeader } from "../../components/ui";
+import { Button } from "../../components/ui";
+import { Modal } from "../../components/ReviewDialog";
+import { BentoButton, BentoIcon, ResultsBento } from "../../components/ResultsBento";
 import { FullDiskAccessRow } from "../onboarding/Onboarding";
 import { formatBytes, formatCount, formatDateTime, shortPath } from "../../lib/format";
 import { useHome } from "../scanner/ScannerPage";
 import { useRemovalMode } from "../../lib/removalMode";
 import type { MenuBarSettings, RemovalMode } from "../../types";
-
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h2 className="text-[13px] font-semibold">{title}</h2>
-      {description && <p className="mt-0.5 mb-2.5 text-[12px] text-ink-3">{description}</p>}
-      <Card className="p-4">{children}</Card>
-    </div>
-  );
-}
 
 function RemovalModeSection() {
   const qc = useQueryClient();
@@ -166,39 +159,135 @@ function Metrics() {
   );
 }
 
-export function SettingsPage() {
-  const { data: info } = useQuery({ queryKey: ["appInfo"], queryFn: api.appInfo });
-  const home = useHome();
+type Panel = "removal" | "permissions" | "menuBar" | "ignored" | "log" | "metrics";
+
+const panels: Record<Panel, { title: string; description?: string }> = {
+  removal: { title: "Ao remover itens", description: "Vale para a limpeza em lote e para as revisões. Desinstalar um app continua indo para a Lixeira." },
+  permissions: { title: "Permissões", description: "O app funciona sem Acesso Total ao Disco, mas não enxerga pastas protegidas pelo macOS." },
+  menuBar: { title: "Barra de menus" },
+  ignored: { title: "Itens ignorados", description: "Pastas que nenhuma análise lê e que nunca são sugeridas para remoção." },
+  log: { title: "Registro de operações", description: "Tudo o que o app moveu para a Lixeira ou apagou, guardado só neste Mac." },
+  metrics: { title: "Estatísticas locais", description: "Calculadas e guardadas só neste Mac. Nada é enviado." },
+};
+
+function PanelModal({ panel, onClose }: { panel: Panel; onClose: () => void }) {
+  const { title, description } = panels[panel];
   return (
-    <div className="h-full overflow-y-auto">
-      <PageHeader title="Ajustes" />
-      <div className="max-w-3xl space-y-6 px-8 pb-10">
-        <Section title="Permissões" description="O app funciona sem Acesso Total ao Disco, mas não enxerga pastas protegidas pelo macOS.">
-          <FullDiskAccessRow compact />
-        </Section>
-        <Section title="Ao remover itens" description="Vale para a limpeza em lote e para as revisões. Desinstalar um app continua indo para a Lixeira.">
-          <RemovalModeSection />
-        </Section>
-        <Section title="Barra de menus">
-          <MenuBarSection />
-        </Section>
-        <Section title="Itens ignorados" description="Pastas que nenhuma análise lê e que nunca são sugeridas para remoção.">
-          <IgnoreList />
-        </Section>
-        <Section title="Registro de operações" description="Tudo o que o app moveu para a Lixeira ou apagou, guardado só neste Mac.">
-          <OperationLog />
-        </Section>
-        <Section title="Estatísticas locais" description="Calculadas e guardadas só neste Mac. Nada é enviado.">
-          <Metrics />
-        </Section>
-        {info && (
-          <div className="space-y-0.5 text-[11.5px] text-ink-3 selectable">
-            <div>OrganizeMyMac {info.version}</div>
-            <div>Dados: {shortPath(info.dataDir, home)}</div>
-            <div>Registros: {shortPath(info.logDir, home)}</div>
-          </div>
-        )}
+    <Modal onClose={onClose} width={panel === "log" ? 760 : 580}>
+      <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
+        <div>
+          <h2 className="text-[16px] font-semibold">{title}</h2>
+          {description && <p className="mt-1 text-[12.5px] text-ink-2">{description}</p>}
+        </div>
+        <button className="rounded p-1 text-ink-3 hover:bg-surface-2 hover:text-ink" onClick={onClose} aria-label="Fechar">
+          <X className="size-4" />
+        </button>
       </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+        {panel === "removal" && <RemovalModeSection />}
+        {panel === "permissions" && <FullDiskAccessRow compact />}
+        {panel === "menuBar" && <MenuBarSection />}
+        {panel === "ignored" && <IgnoreList />}
+        {panel === "log" && <OperationLog />}
+        {panel === "metrics" && <Metrics />}
+      </div>
+    </Modal>
+  );
+}
+
+const menuBarTitle = { icon: "só o ícone", cpu: "uso de CPU", memory: "uso de memória", both: "CPU e memória" };
+
+// Each setting is a tile with its current value; the controls open in a dialog.
+export function SettingsPage() {
+  const home = useHome();
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const { data: info } = useQuery({ queryKey: ["appInfo"], queryFn: api.appInfo });
+  const { data: perm, refetch: recheck, isFetching: checking } = useQuery({ queryKey: ["permissions"], queryFn: api.permissionStatus, refetchOnWindowFocus: true });
+  const { data: bar } = useQuery({ queryKey: ["menuBar"], queryFn: api.menuBarSettings });
+  const { data: ignored } = useQuery({ queryKey: ["ignore"], queryFn: api.ignoreList });
+  const { mode } = useRemovalMode();
+
+  const access = perm?.fullDiskAccess ?? "unknown";
+  const accessLabel = { granted: "concedido", denied: "não concedido", unknown: "não foi possível verificar" }[access];
+  const open = (p: Panel) => () => setPanel(p);
+
+  return (
+    <div className="flex h-full flex-col">
+      <header className="drag flex h-[52px] shrink-0 items-center justify-center text-[13px] font-medium text-ink-2">Ajustes</header>
+      <div className="min-h-0 flex-1">
+        <ResultsBento
+          headline="Deixe o OrganizeMyMac do seu jeito."
+          pill={<BentoButton onClick={open("log")}>Registro de operações</BentoButton>}
+          extra={<BentoButton onClick={open("metrics")}>Estatísticas locais</BentoButton>}
+          footer={
+            info && (
+              <div className="space-y-0.5 text-center text-[11.5px] text-ink-3 selectable">
+                <div>OrganizeMyMac {info.version}</div>
+                <div>
+                  Dados: {shortPath(info.dataDir, home)} · Registros: {shortPath(info.logDir, home)}
+                </div>
+              </div>
+            )
+          }
+          tiles={[
+            {
+              id: "removal",
+              title: mode === "trash" ? "Itens removidos vão para a Lixeira" : "Itens removidos vão para a Quarentena",
+              description:
+                mode === "trash"
+                  ? "Saem de vez só quando você esvazia a Lixeira do macOS. É o modo mais seguro."
+                  : "São movidos para uma pasta com a data e um registro em CSV. Continuam ocupando espaço até você enviá-los à Lixeira.",
+              visual: <BentoIcon size={112}><Trash2 /></BentoIcon>,
+              actions: (
+                <BentoButton primary onClick={open("removal")}>
+                  Alterar
+                </BentoButton>
+              ),
+            },
+            {
+              id: "permissions",
+              title: `Acesso Total ao Disco ${accessLabel}`,
+              description: "O app funciona sem ele, mas não enxerga pastas protegidas pelo macOS.",
+              visual: <BentoIcon size={56}><ShieldCheck /></BentoIcon>,
+              actions: (
+                <>
+                  <BentoButton onClick={() => recheck()} disabled={checking}>
+                    Verificar
+                  </BentoButton>
+                  {access !== "granted" && (
+                    <BentoButton primary onClick={() => api.openSystemSettings("fullDiskAccess")}>
+                      Abrir Ajustes do Sistema
+                    </BentoButton>
+                  )}
+                </>
+              ),
+            },
+            {
+              id: "menuBar",
+              title: bar?.enabled ? "Barra de menus ligada" : "Barra de menus desligada",
+              description: bar?.enabled ? `Ao lado do ícone: ${menuBarTitle[bar.title]}.` : "Mostre CPU, memória e disco sem abrir a janela.",
+              visual: <BentoIcon size={48}><MenuSquare /></BentoIcon>,
+              actions: (
+                <BentoButton primary onClick={open("menuBar")}>
+                  Ajustar
+                </BentoButton>
+              ),
+            },
+            {
+              id: "ignored",
+              title: `${ignored?.length ?? 0} ${ignored?.length === 1 ? "pasta ignorada" : "pastas ignoradas"}`,
+              description: "Nenhuma análise lê essas pastas e elas nunca são sugeridas para remoção.",
+              visual: <BentoIcon size={48}><EyeOff /></BentoIcon>,
+              actions: (
+                <BentoButton primary onClick={open("ignored")}>
+                  Gerenciar
+                </BentoButton>
+              ),
+            },
+          ]}
+        />
+      </div>
+      {panel && <PanelModal panel={panel} onClose={() => setPanel(null)} />}
     </div>
   );
 }

@@ -13,7 +13,7 @@ export type BentoTile = {
 
 // The results frame of a module: a headline with a pill, then four glass tiles. The first stands
 // tall on the left, the second spans the right, the last two sit side by side underneath.
-export function ResultsBento({ headline, pill, extra, tiles }: { headline: ReactNode; pill?: ReactNode; extra?: ReactNode; tiles: [BentoTile, BentoTile, BentoTile, BentoTile] }) {
+export function ResultsBento({ headline, pill, extra, footer, tiles }: { headline: ReactNode; pill?: ReactNode; extra?: ReactNode; footer?: ReactNode; tiles: [BentoTile, BentoTile, BentoTile, BentoTile] }) {
   const [tall, wide, a, b] = tiles;
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto px-8 pb-8">
@@ -30,6 +30,7 @@ export function ResultsBento({ headline, pill, extra, tiles }: { headline: React
         <Tile tile={a} variant="small" index={2} />
         <Tile tile={b} variant="small" index={3} />
       </div>
+      {footer && <div className="mx-auto mt-4 w-full max-w-[1000px] shrink-0">{footer}</div>}
     </div>
   );
 }
