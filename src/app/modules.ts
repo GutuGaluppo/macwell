@@ -23,7 +23,7 @@ export type Module = {
   sections: { id: Section; label: string; job?: string }[];
 };
 
-export const home: Module = { id: "home", label: "Início", icon: inicio, sections: [{ id: "overview", label: "Início" }] };
+export const home: Module = { id: "home", label: "Assistente", icon: inicio, sections: [{ id: "overview", label: "Assistente" }] };
 
 export const smartCare: Module = {
   id: "smartCare",
