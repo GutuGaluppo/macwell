@@ -186,6 +186,7 @@ export function SecurityPage() {
       hero={securityHero}
       intro="Veja o que inicia sozinho no Mac e como cada app está assinado. É uma auditoria experimental, não um antivírus: não detecta malware e não muda nada no sistema."
       scanLabel="Auditar"
+      progress={job.stage?.stage === "apps" ? job.stage.done / Math.max(job.stage.total, 1) : undefined}
       scanning="Verificando o sistema…"
       detail={job.stage?.stage === "apps" ? `Verificando assinaturas (${formatCount(job.stage.done)} de ${formatCount(job.stage.total)})` : "Lendo itens de início"}
       onScan={scan}

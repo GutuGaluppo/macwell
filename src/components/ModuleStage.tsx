@@ -5,6 +5,34 @@ import { RoundAction } from "./GlassTile";
 
 export type StagePhase = "intro" | "scanning" | "results";
 
+// The Stop button with a ring around it: a spinning arc while the work has no known length,
+// a filling arc when it has one.
+function ScanRing({ progress, children }: { progress?: number; children: ReactNode }) {
+  const r = 52;
+  const c = 2 * Math.PI * r;
+  const known = progress !== undefined;
+  return (
+    <div className="relative grid size-[84px] place-items-center">
+      <svg viewBox="0 0 120 120" className="pointer-events-none absolute -inset-[18px] size-[120px] -rotate-90">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="rgb(255 255 255 / 0.16)" strokeWidth="4" />
+        <circle
+          cx="60"
+          cy="60"
+          r={r}
+          fill="none"
+          stroke="white"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={`${c * (known ? Math.max(0.03, Math.min(1, progress)) : 0.25)} ${c}`}
+          className={known ? "transition-[stroke-dasharray] duration-500" : "origin-center animate-[ring-spin_1.3s_linear_infinite]"}
+          style={known ? undefined : { transformOrigin: "60px 60px" }}
+        />
+      </svg>
+      {children}
+    </div>
+  );
+}
+
 // The three-step frame of a module: intro (big icon and a Scan button), scanning (the same icon,
 // what is being read, a Stop button) and results (the module's own content under a slim title bar).
 export function ModuleStage({
@@ -20,6 +48,7 @@ export function ModuleStage({
   backLabel = "Começar de novo",
   scanLabel = "Analisar",
   introExtra,
+  progress,
   children,
 }: {
   phase: StagePhase;
@@ -36,6 +65,8 @@ export function ModuleStage({
   backLabel?: string;
   scanLabel?: string;
   introExtra?: ReactNode;
+  /** 0..1 when the scan reports how far it is; omit for an indeterminate ring. */
+  progress?: number;
   children: ReactNode;
 }) {
   const setCompact = useStage((s) => s.setCompact);
@@ -60,9 +91,9 @@ export function ModuleStage({
       </header>
 
       {phase === "results" ? (
-        <div className="min-h-0 flex-1">{children}</div>
+        <div key="results" className="stage-in min-h-0 flex-1">{children}</div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col items-center px-8 pb-10 text-center">
+        <div key={phase} className="stage-in flex min-h-0 flex-1 flex-col items-center px-8 pb-10 text-center">
           <div className="flex min-h-0 flex-1 items-center justify-center">
             <img
               src={hero}
@@ -77,7 +108,13 @@ export function ModuleStage({
           </p>
           <div className="mt-3 flex h-8 items-center">{phase === "intro" && introExtra}</div>
           <div className="mt-5">
-            {phase === "intro" ? <RoundAction onClick={onScan}>{scanLabel}</RoundAction> : <RoundAction onClick={onStop}>Parar</RoundAction>}
+            {phase === "intro" ? (
+              <RoundAction onClick={onScan}>{scanLabel}</RoundAction>
+            ) : (
+              <ScanRing progress={progress}>
+                <RoundAction onClick={onStop}>Parar</RoundAction>
+              </ScanRing>
+            )}
           </div>
         </div>
       )}

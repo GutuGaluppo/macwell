@@ -25,18 +25,18 @@ export function ResultsBento({ headline, pill, extra, tiles }: { headline: React
         </div>
       </div>
       <div className="mx-auto grid min-h-[430px] w-full max-w-[1000px] flex-1 grid-cols-3 grid-rows-2 gap-4">
-        <Tile tile={tall} variant="tall" className="row-span-2" />
-        <Tile tile={wide} variant="wide" className="col-span-2" />
-        <Tile tile={a} variant="small" />
-        <Tile tile={b} variant="small" />
+        <Tile tile={tall} variant="tall" index={0} className="row-span-2" />
+        <Tile tile={wide} variant="wide" index={1} className="col-span-2" />
+        <Tile tile={a} variant="small" index={2} />
+        <Tile tile={b} variant="small" index={3} />
       </div>
     </div>
   );
 }
 
-function Tile({ tile, variant, className = "" }: { tile: BentoTile; variant: "tall" | "wide" | "small"; className?: string }) {
+function Tile({ tile, variant, index, className = "" }: { tile: BentoTile; variant: "tall" | "wide" | "small"; index: number; className?: string }) {
   return (
-    <section className={`glass relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[22px] p-5 ${className}`}>
+    <section style={{ animationDelay: `${index * 70}ms` }} className={`stage-in glass relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[22px] p-5 ${className}`}>
       {variant !== "tall" && tile.visual && <div className="pointer-events-none absolute top-4 right-4">{tile.visual}</div>}
       <h2 className={`font-semibold leading-snug tracking-tight text-ink ${variant === "small" ? "max-w-[78%] text-[17px]" : "max-w-[70%] text-[19px]"}`}>{tile.title}</h2>
       {tile.description && <p className={`mt-1.5 text-[13px] leading-snug text-ink-2 ${variant === "small" ? "line-clamp-3 max-w-[78%]" : "max-w-[78%]"}`}>{tile.description}</p>}

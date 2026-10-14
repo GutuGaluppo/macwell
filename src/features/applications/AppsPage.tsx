@@ -212,6 +212,7 @@ export function AppsPage() {
       hero={appsHero}
       intro="Veja o que está instalado, o que não é usado há meses e o que apps já removidos deixaram para trás. Nada é removido sem a sua confirmação."
       scanning="Procurando aplicativos…"
+      progress={apps.status === "running" && apps.stage ? apps.stage.done / Math.max(apps.stage.total, 1) : undefined}
       detail={apps.status === "running" && apps.stage ? `Medindo os apps (${formatCount(apps.stage.done)} de ${formatCount(apps.stage.total)})` : "Lendo apps, atualizações e restos"}
       onScan={scan}
       onStop={() => JOBS.forEach((j) => cancel(j.module))}

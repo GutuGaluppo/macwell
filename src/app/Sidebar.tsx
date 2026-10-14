@@ -14,6 +14,26 @@ function useRunning(jobs: (string | undefined)[]) {
   return useJobs((s) => jobs.some((j) => j && s.jobs[j]?.status === "running"));
 }
 
+// A finished analysis the user has not looked at yet: set while any job of the module is done.
+function useReady(jobs: (string | undefined)[]) {
+  return useJobs((s) => jobs.some((j) => j && s.jobs[j]?.status === "done"));
+}
+
+// Badge on a module icon: a spinning arc while it works, a dot when results are waiting.
+function Badge({ running, ready }: { running: boolean; ready: boolean }) {
+  if (running)
+    return (
+      <span className="absolute -top-1 -right-1.5 grid size-[14px] place-items-center rounded-full bg-white/90 shadow" aria-label="em andamento">
+        <svg viewBox="0 0 20 20" className="size-[10px] animate-spin">
+          <circle cx="10" cy="10" r="7" fill="none" stroke="rgb(0 0 0 / 0.2)" strokeWidth="3" />
+          <path d="M10 3a7 7 0 0 1 7 7" fill="none" stroke="#1b1650" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      </span>
+    );
+  if (ready) return <span className="absolute -top-0.5 -right-1 size-[9px] rounded-full bg-white shadow ring-2 ring-[var(--deep,#1b1650)]/60" aria-label="resultado disponível" />;
+  return null;
+}
+
 function Pulse() {
   return <span className="size-1.5 shrink-0 rounded-full bg-safe animate-pulse" aria-label="em andamento" />;
 }
@@ -38,6 +58,7 @@ function SubItem({ id, label, job }: { id: Section; label: string; job?: string 
 function ModuleItem({ module, compact }: { module: Module; compact: boolean }) {
   const { section, go } = useNav();
   const running = useRunning(module.sections.map((s) => s.job));
+  const ready = useReady(module.sections.map((s) => s.job)) && !module.sections.some((s) => s.id === section);
   const inside = module.sections.some((s) => s.id === section);
   const expanded = inside && module.sections.length > 1 && !compact;
   return (
@@ -47,10 +68,12 @@ function ModuleItem({ module, compact }: { module: Module; compact: boolean }) {
         title={compact ? module.label : undefined}
         className={`${rowClass(inside)} relative h-[38px] ${compact ? "justify-center" : ""}`}
       >
-        <img src={module.icon} alt="" className="size-[30px] shrink-0 object-contain" draggable={false} />
+        <span className="relative shrink-0">
+          <img src={module.icon} alt="" className="size-[30px] object-contain" draggable={false} />
+          {!expanded && <Badge running={running} ready={ready} />}
+        </span>
         {!compact && <span className="flex-1 truncate">{module.label}</span>}
         {!compact && module.badge && <small className="rounded bg-white/18 px-1.5 py-px text-[9px] font-medium text-ink-2">{module.badge}</small>}
-        {running && !expanded && (compact ? <span className="absolute top-1 right-1.5"><Pulse /></span> : <Pulse />)}
       </button>
       {expanded && (
         <div className="mt-[3px] space-y-px">

@@ -141,6 +141,11 @@ body,
   background-clip: content-box;
 }
 
+/* Entrance for a new phase of a module and for the tiles of the results. */
+@keyframes stage-in { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.stage-in { animation: stage-in 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;
