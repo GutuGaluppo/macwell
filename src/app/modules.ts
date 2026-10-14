@@ -11,7 +11,6 @@ import minhaBagunca from "../assets/icons/minha-bagunca.webp";
 import mapaDeEspaco from "../assets/icons/mapa-de-espaco.webp";
 import scanner from "../assets/icons/scanner.webp";
 import projetos from "../assets/icons/projetos.webp";
-export { default as appIcon } from "../assets/icons/app-icon.webp";
 export { default as settingsIcon } from "../assets/icons/ajustes.webp";
 
 export type Module = {

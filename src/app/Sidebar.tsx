@@ -1,7 +1,7 @@
 import { useNav, type Section } from "../stores/nav";
 import { useJobs } from "../stores/jobs";
 import { useStage } from "../stores/stage";
-import { appIcon, home, modules, settingsIcon, smartCare, tools, type Module } from "./modules";
+import { home, modules, settingsIcon, smartCare, tools, type Module } from "./modules";
 
 // Rows sit on the window gradient; the active one becomes a glass pill.
 // In the icon rail the row is a circle, so the active border is round.
@@ -106,10 +106,6 @@ export function Sidebar() {
     <nav
       className={`drag flex h-full shrink-0 flex-col pt-[52px] pb-3.5 transition-[width,padding] duration-300 [text-shadow:0_1px_3px_rgb(0_0_0/0.3)] ${compact ? "w-[76px] px-3" : "w-[212px] px-3"}`}
     >
-      <div className={`flex items-center gap-2.5 pb-5 text-[15px] font-semibold text-ink ${compact ? "justify-center" : "px-2"}`}>
-        <img src={appIcon} alt="" className="size-[30px] object-contain" draggable={false} />
-        {!compact && "OrganizeMyMac"}
-      </div>
       <div className="-mx-1 flex-1 overflow-y-auto px-1 [-webkit-app-region:no-drag]">
         <Group items={[home, smartCare]} compact={compact} />
         <Group label="Módulos" items={modules} compact={compact} />
