@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Camera, ChevronDown, ChevronRight, FolderOpen, FolderPlus, GitBranch, Send, X } from "lucide-react";
+import { Boxes, Camera, ChevronDown, ChevronLeft, ChevronRight, FolderOpen, FolderPlus, GitBranch, Send, X } from "lucide-react";
 import { api, errorMessage } from "../../lib/ipc";
 import { withBackupAck } from "../../stores/backupGate";
 import { useJob, useJobs } from "../../stores/jobs";
-import { Badge, Button, Card, EmptyState, ErrorNote, PageHeader, ProgressBar, Stat } from "../../components/ui";
-import { ProjectsLoader } from "../../components/loaders";
+import { Badge, Button, Card, ErrorNote, PageHeader, Stat } from "../../components/ui";
+import { ModuleStage } from "../../components/ModuleStage";
+import { BentoButton, BentoIcon, ResultsBento } from "../../components/ResultsBento";
+import projectsHero from "../../assets/icons/projetos-hd.webp";
 import { ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
 import { useHome } from "../scanner/ScannerPage";
 import { formatAge, formatBytes, formatCount, formatDateTime, shortPath } from "../../lib/format";
@@ -187,38 +189,17 @@ function RepoRow({
   );
 }
 
-export function ProjectsPage() {
+function ProjectsDetails({ onBack, initialOnlyPending }: { onBack: () => void; initialOnlyPending: boolean }) {
   const home = useHome();
-  const qc = useQueryClient();
   const job = useJob<DevReport>(MODULE);
-  const start = useJobs((s) => s.start);
   const patchResult = useJobs((s) => s.update);
-  const { data: roots = [] } = useQuery({ queryKey: ["devRoots"], queryFn: api.devRoots });
-  const [error, setError] = useState<string | null>(null);
-  const [onlyPending, setOnlyPending] = useState(true);
+  const [onlyPending, setOnlyPending] = useState(initialOnlyPending);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [snapshotOf, setSnapshotOf] = useState<RepoReport | null>(null);
   const [pushOf, setPushOf] = useState<{ repo: RepoReport; refName: string } | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState(false);
-  const running = job.status === "running";
   const r = job.result;
-
-  const addRoot = async () => {
-    setError(null);
-    try {
-      const picked = await open({ directory: true, multiple: false, title: "Escolha uma pasta com seus projetos" });
-      if (typeof picked !== "string") return;
-      await api.addDevRoot(picked);
-      qc.invalidateQueries({ queryKey: ["devRoots"] });
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  };
-  const removeRoot = async (path: string) => {
-    await api.removeDevRoot(path);
-    qc.invalidateQueries({ queryKey: ["devRoots"] });
-  };
 
   const repos = (r?.repos ?? []).filter((x) => !onlyPending || unsyncedReasons(x).length > 0);
   const pendingCount = (r?.repos ?? []).filter((x) => unsyncedReasons(x).length > 0).length;
@@ -275,62 +256,15 @@ export function ProjectsPage() {
         title="Projetos"
         subtitle="Repositórios git nas pastas que você escolher: o que ainda não foi enviado, o que dá para regenerar e um snapshot seguro do trabalho em andamento. A análise só lê; nada muda sem a sua confirmação."
         actions={
-          <Button variant={r ? "secondary" : "primary"} busy={running} disabled={roots.length === 0} onClick={() => start(MODULE, "start_dev_scan", {})}>
-            {r ? "Analisar de novo" : "Analisar"}
+          <Button variant="ghost" icon={<ChevronLeft className="size-3.5" />} onClick={onBack}>
+            Voltar aos resultados
           </Button>
         }
       />
       <div className="space-y-4 px-8 pb-10">
-        <Card className="p-4">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="text-[13px] font-medium">Pastas de projetos</div>
-            <Button size="sm" icon={<FolderPlus className="size-3.5" />} onClick={addRoot}>
-              Adicionar pasta…
-            </Button>
-          </div>
-          {roots.length === 0 ? (
-            <p className="text-[12.5px] text-ink-3">Nenhuma pasta ainda. Escolha, por exemplo, a pasta onde ficam seus repositórios.</p>
-          ) : (
-            <ul className="space-y-1">
-              {roots.map((root) => (
-                <li key={root.path} className="flex items-center gap-2 text-[12.5px]">
-                  <span className="min-w-0 flex-1 truncate font-mono text-ink-2 selectable" title={root.path}>
-                    {shortPath(root.path, home)}
-                  </span>
-                  <button className="text-ink-3 hover:text-ink" title="Remover da lista (não apaga nada)" onClick={() => removeRoot(root.path)}>
-                    <X className="size-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-2 text-[11.5px] text-ink-3">
-            Links simbólicos não são seguidos, e <span className="font-mono">node_modules</span>, <span className="font-mono">.git</span>,{" "}
-            <span className="font-mono">target</span> e similares não são abertos na busca. Nada sai do seu Mac.
-          </p>
-        </Card>
-
-        {error && <ErrorNote>{error}</ErrorNote>}
         {job.status === "failed" && <ErrorNote>{job.error}</ErrorNote>}
 
-        {!r && !running && job.status !== "failed" && (
-          <EmptyState icon={<GitBranch className="size-6" />} title="Veja o que só existe no seu Mac">
-            {roots.length === 0
-              ? "Adicione uma pasta de projetos e analise para ver repositórios com trabalho não enviado e pastas que podem ser recriadas."
-              : "Analise para ver repositórios com trabalho não enviado e pastas que podem ser recriadas. Leva alguns segundos."}
-          </EmptyState>
-        )}
-        {running && (
-          <Card className="p-5">
-            <ProjectsLoader />
-            <div className="mb-3 text-[13px] font-medium">
-              {job.stage?.stage === "repos" ? `Lendo repositórios (${formatCount(job.stage.done)} de ${formatCount(job.stage.total)})` : "Procurando repositórios"}
-            </div>
-            <ProgressBar value={job.stage?.stage === "repos" ? job.stage.done / Math.max(job.stage.total, 1) : undefined} indeterminate={job.stage?.stage !== "repos"} />
-          </Card>
-        )}
-
-        {r && !running && (
+        {r && (
           <>
             {r.gitError && <ErrorNote>{r.gitError}</ErrorNote>}
             <Card className="grid grid-cols-3 gap-6 p-5">
@@ -401,5 +335,189 @@ export function ProjectsPage() {
       )}
       {pushOf && <PushDialog repo={pushOf.repo} refName={pushOf.refName} onClose={() => setPushOf(null)} onPushed={() => markPushed(pushOf.repo.path)} />}
     </div>
+  );
+}
+
+// The folders the analysis reads, as removable chips plus an add button.
+function RootChips() {
+  const home = useHome();
+  const qc = useQueryClient();
+  const { data: roots = [] } = useQuery({ queryKey: ["devRoots"], queryFn: api.devRoots });
+  const [error, setError] = useState<string | null>(null);
+  const refresh = () => qc.invalidateQueries({ queryKey: ["devRoots"] });
+  const add = async () => {
+    setError(null);
+    try {
+      const dir = await open({ directory: true, multiple: false, title: "Escolha uma pasta com seus projetos" });
+      if (typeof dir !== "string") return;
+      await api.addDevRoot(dir);
+      refresh();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
+  return (
+    <div className="flex max-w-[640px] flex-wrap items-center justify-center gap-2">
+      {roots.map((root) => (
+        <span key={root.path} className="glass flex h-8 max-w-[260px] items-center gap-1.5 rounded-full pr-1.5 pl-3 text-[12.5px]" title={root.path}>
+          <span className="truncate">{shortPath(root.path, home)}</span>
+          <button
+            className="grid size-5 shrink-0 place-items-center rounded-full text-ink-3 hover:bg-white/15 hover:text-ink"
+            title="Remover da lista (não apaga nada)"
+            aria-label={`Remover ${shortPath(root.path, home)}`}
+            onClick={async () => {
+              await api.removeDevRoot(root.path);
+              refresh();
+            }}
+          >
+            <X className="size-3.5" />
+          </button>
+        </span>
+      ))}
+      <button onClick={add} className="glass flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium hover:bg-white/20">
+        <FolderPlus className="size-3.5" /> {roots.length ? "Adicionar pasta" : "Adicionar pasta de projetos"}
+      </button>
+      {error && <div className="w-full text-[12px] text-danger">{error}</div>}
+    </div>
+  );
+}
+
+// Intro, scan and results around the git analysis. It needs at least one folder to read.
+export function ProjectsPage() {
+  const job = useJob<DevReport>(MODULE);
+  const { start, cancel, reset } = useJobs();
+  const { data: roots = [] } = useQuery({ queryKey: ["devRoots"], queryFn: api.devRoots });
+  const [details, setDetails] = useState<{ onlyPending: boolean } | null>(null);
+  const r = job.result;
+  const phase = job.status === "running" ? "scanning" : job.status === "done" || job.status === "failed" ? "results" : "intro";
+
+  const repos = r?.repos ?? [];
+  const pending = repos.filter((x) => unsyncedReasons(x).length > 0);
+  const artifacts = r?.artifacts ?? [];
+  const regenerable = artifacts.reduce((n, a) => n + a.size, 0);
+  const safeBytes = artifacts.filter((a) => a.confidence === "safe").reduce((n, a) => n + a.size, 0);
+  const localSnapshots = repos.filter((x) => x.lastSnapshot && !x.lastSnapshot.pushedAt).length;
+  const byKind = Object.entries(
+    artifacts.reduce<Record<string, number>>((acc, a) => {
+      acc[a.kind] = (acc[a.kind] ?? 0) + a.size;
+      return acc;
+    }, {}),
+  )
+    .sort((x, y) => y[1] - x[1])
+    .slice(0, 4);
+  const scan = () => start(MODULE, "start_dev_scan", {});
+  const stage = job.stage?.stage === "repos" ? job.stage : undefined;
+
+  return (
+    <ModuleStage
+      phase={phase}
+      title="Projetos"
+      hero={projectsHero}
+      intro="Encontre repositórios git com trabalho não enviado e pastas que dá para regenerar. A análise só lê; nada muda sem a sua confirmação."
+      introExtra={
+        <div className="flex flex-col items-center gap-2">
+          {roots.length === 0 && <span className="text-[12.5px] text-ink-3">Escolha a pasta onde ficam seus repositórios para começar.</span>}
+          <RootChips />
+        </div>
+      }
+      scanDisabled={roots.length === 0}
+      scanning="Procurando repositórios…"
+      detail={stage ? `Lendo repositórios (${formatCount(stage.done)} de ${formatCount(stage.total)})` : "Procurando repositórios"}
+      progress={stage ? stage.done / Math.max(stage.total, 1) : undefined}
+      onScan={scan}
+      onStop={() => {
+        cancel(MODULE);
+        reset(MODULE);
+      }}
+      onBack={() => {
+        setDetails(null);
+        reset(MODULE);
+      }}
+    >
+      {details ? (
+        <ProjectsDetails initialOnlyPending={details.onlyPending} onBack={() => setDetails(null)} />
+      ) : (
+        <>
+          {job.status === "failed" && (
+            <div className="px-8">
+              <ErrorNote>{job.error}</ErrorNote>
+            </div>
+          )}
+          {r?.gitError && (
+            <div className="px-8">
+              <ErrorNote>{r.gitError}</ErrorNote>
+            </div>
+          )}
+          {r && (
+            <ResultsBento
+              headline={pending.length ? `${formatCount(pending.length)} ${pending.length === 1 ? "projeto tem" : "projetos têm"} trabalho que só existe no seu Mac.` : "Tudo enviado. Nenhum trabalho só no seu Mac."}
+              pill={<BentoButton onClick={() => setDetails({ onlyPending: false })}>Ver todos os repositórios</BentoButton>}
+              extra={<BentoButton onClick={scan}>Analisar de novo</BentoButton>}
+              tiles={[
+                {
+                  id: "pending",
+                  title: `${formatCount(pending.length)} de ${formatCount(repos.length)} repositórios com trabalho não enviado`,
+                  description: "Alterações sem commit, commits sem push ou um branch sem destino.",
+                  visual: <BentoIcon size={112}><GitBranch /></BentoIcon>,
+                  body: (
+                    <ul className="space-y-1 text-[12.5px]">
+                      {pending.slice(0, 3).map((x) => (
+                        <li key={x.path} className="flex justify-between gap-3">
+                          <span className="truncate text-ink-2">{baseName(x.path)}</span>
+                          <span className="shrink-0 text-ink-3">{unsyncedReasons(x)[0]}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ),
+                  actions: (
+                    <BentoButton primary disabled={!pending.length} onClick={() => setDetails({ onlyPending: true })}>
+                      Revisar
+                    </BentoButton>
+                  ),
+                },
+                {
+                  id: "regenerable",
+                  title: `${formatBytes(regenerable)} em pastas que dá para regenerar`,
+                  description: `${formatBytes(safeBytes)} marcados como seguros. Nada vem marcado: você escolhe o que mover para a Lixeira.`,
+                  visual: <BentoIcon size={56}><Boxes /></BentoIcon>,
+                  body: (
+                    <div className="flex flex-wrap gap-1.5">
+                      {byKind.map(([kind, size]) => (
+                        <Badge key={kind}>
+                          {artifactKindLabel[kind] ?? kind} · {formatBytes(size)}
+                        </Badge>
+                      ))}
+                    </div>
+                  ),
+                  actions: (
+                    <BentoButton primary disabled={!artifacts.length} onClick={() => setDetails({ onlyPending: false })}>
+                      Revisar
+                    </BentoButton>
+                  ),
+                },
+                {
+                  id: "repos",
+                  title: `${formatCount(repos.length)} ${repos.length === 1 ? "repositório" : "repositórios"}`,
+                  description: `em ${formatCount(r?.roots.length ?? 0)} ${(r?.roots.length ?? 0) === 1 ? "pasta" : "pastas"} de projetos.`,
+                  visual: <BentoIcon size={48}><FolderOpen /></BentoIcon>,
+                  actions: <BentoButton onClick={() => setDetails({ onlyPending: false })}>Revisar</BentoButton>,
+                },
+                {
+                  id: "snapshots",
+                  title: `${formatCount(localSnapshots)} ${localSnapshots === 1 ? "snapshot só local" : "snapshots só locais"}`,
+                  description: "Um snapshot guarda o trabalho em andamento. Envie para ter uma cópia fora do Mac.",
+                  visual: <BentoIcon size={48}><Camera /></BentoIcon>,
+                  actions: (
+                    <BentoButton primary disabled={!pending.length} onClick={() => setDetails({ onlyPending: true })}>
+                      Revisar
+                    </BentoButton>
+                  ),
+                },
+              ]}
+            />
+          )}
+        </>
+      )}
+    </ModuleStage>
   );
 }

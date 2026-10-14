@@ -48,6 +48,7 @@ export function ModuleStage({
   backLabel = "Começar de novo",
   scanLabel = "Analisar",
   introExtra,
+  scanDisabled,
   progress,
   children,
 }: {
@@ -65,6 +66,8 @@ export function ModuleStage({
   backLabel?: string;
   scanLabel?: string;
   introExtra?: ReactNode;
+  /** Dims the Analisar button, e.g. while a required choice is still missing. */
+  scanDisabled?: boolean;
   /** 0..1 when the scan reports how far it is; omit for an indeterminate ring. */
   progress?: number;
   children: ReactNode;
@@ -103,13 +106,15 @@ export function ModuleStage({
             />
           </div>
           <h1 className="text-[44px] leading-none font-light tracking-tight text-ink">{phase === "intro" ? title : scanning}</h1>
-          <p className="mt-4 h-[44px] max-w-[520px] text-[15px] leading-snug text-ink-2">
+          <p className="mt-4 min-h-[44px] max-w-[520px] text-[15px] leading-snug text-ink-2">
             {phase === "intro" ? intro : <span className="block truncate">{detail}</span>}
           </p>
-          <div className="mt-3 flex h-8 items-center">{phase === "intro" && introExtra}</div>
+          <div className="mt-3 flex min-h-8 flex-wrap items-center justify-center gap-2">{phase === "intro" && introExtra}</div>
           <div className="mt-5">
             {phase === "intro" ? (
-              <RoundAction onClick={onScan}>{scanLabel}</RoundAction>
+              <RoundAction onClick={onScan} disabled={scanDisabled}>
+                {scanLabel}
+              </RoundAction>
             ) : (
               <ScanRing progress={progress}>
                 <RoundAction onClick={onStop}>Parar</RoundAction>
