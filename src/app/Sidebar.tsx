@@ -5,10 +5,11 @@ import { useStage } from "../stores/stage";
 import { appIcon, home, modules, smartCare, tools, type Module } from "./modules";
 
 // Rows sit on the window gradient; the active one becomes a glass pill.
-const rowClass = (active: boolean) =>
-  `flex w-full items-center gap-2.5 rounded-lg px-2 text-left text-[13px] text-ink transition-colors duration-150 ${
-    active ? "glass font-semibold" : "font-medium border border-transparent hover:bg-white/10"
-  }`;
+// In the icon rail the row is a circle, so the active border is round.
+const rowClass = (active: boolean, compact = false) =>
+  `flex items-center text-left text-[13px] text-ink transition-colors duration-150 ${
+    compact ? "mx-auto size-[46px] justify-center rounded-full" : "h-[38px] w-full gap-2.5 rounded-lg px-2"
+  } ${active ? "glass font-semibold" : "font-medium border border-transparent hover:bg-white/10"}`;
 
 function useRunning(jobs: (string | undefined)[]) {
   return useJobs((s) => jobs.some((j) => j && s.jobs[j]?.status === "running"));
@@ -66,7 +67,7 @@ function ModuleItem({ module, compact }: { module: Module; compact: boolean }) {
       <button
         onClick={() => go(module.sections[0].id)}
         title={compact ? module.label : undefined}
-        className={`${rowClass(inside)} relative h-[38px] ${compact ? "justify-center" : ""}`}
+        className={`${rowClass(inside, compact)} relative`}
       >
         <span className="relative shrink-0">
           <img src={module.icon} alt="" className="size-[30px] object-contain" draggable={false} />
@@ -89,8 +90,8 @@ function ModuleItem({ module, compact }: { module: Module; compact: boolean }) {
 function Group({ label, items, compact }: { label?: string; items: Module[]; compact: boolean }) {
   return (
     <div>
-      {label && (compact ? <div className="mx-2 mt-[11px] mb-1.5 border-t border-white/12" /> : <div className="mx-2 mt-[19px] mb-1.5 text-[11px] font-bold text-ink-2">{label}</div>)}
-      <div className="space-y-[3px]">
+      {label && (compact ? <div className="mx-2 mt-3 mb-3 border-t border-white/12" /> : <div className="mx-2 mt-[19px] mb-1.5 text-[11px] font-bold text-ink-2">{label}</div>)}
+      <div className={compact ? "space-y-2" : "space-y-[3px]"}>
         {items.map((m) => (
           <ModuleItem key={m.id} module={m} compact={compact} />
         ))}
@@ -116,7 +117,7 @@ export function Sidebar() {
         <Group label="Ferramentas" items={tools} compact={compact} />
       </div>
       <div className="pt-3 [-webkit-app-region:no-drag]">
-        <button onClick={() => go("settings")} title={compact ? "Ajustes" : undefined} className={`${rowClass(section === "settings")} h-[38px] ${compact ? "justify-center" : ""}`}>
+        <button onClick={() => go("settings")} title={compact ? "Ajustes" : undefined} className={rowClass(section === "settings", compact)}>
           <span className="grid size-[30px] shrink-0 place-items-center text-ink-2">
             <Settings className="size-[18px]" />
           </span>
