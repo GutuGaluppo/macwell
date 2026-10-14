@@ -1,0 +1,11 @@
+---
+// Approved glass icons, pre-sized by scripts/build-icons.mjs. Decorative: alt is empty.
+interface Props { name: string; size?: number; class?: string; eager?: boolean }
+const { name, size = 160, class: cls = '', eager = false } = Astro.props;
+const base = `/img/icons/${name}`;
+---
+<picture class={cls}>
+  <source type="image/avif" srcset={`${base}-320.avif 1x, ${base}-640.avif 2x`} />
+  <source type="image/webp" srcset={`${base}-320.webp 1x, ${base}-640.webp 2x`} />
+  <img class="icon" src={`${base}-320.webp`} width={size} height={size} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" />
+</picture>

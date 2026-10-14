@@ -1,0 +1,49 @@
+---
+import '../styles/global.css';
+import { LOCALES, meta, type Locale } from '../i18n/locales';
+import { SITE_URL, ANALYTICS } from '../config';
+
+interface Props { locale: Locale; title: string; description: string; jsonLd?: object }
+const { locale, title, description, jsonLd } = Astro.props;
+const m = meta[locale];
+const canonical = `${SITE_URL}/${locale}/`;
+const ogImage = `${SITE_URL}/og.png`;
+---
+<!doctype html>
+<html lang={m.htmlLang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="dark light" />
+    <noscript><link rel="stylesheet" href="/nojs.css" /></noscript>
+    <link rel="canonical" href={canonical} />
+    {LOCALES.map((l) => <link rel="alternate" hreflang={meta[l].htmlLang} href={`${SITE_URL}/${l}/`} />)}
+    <link rel="alternate" hreflang="x-default" href={`${SITE_URL}/`} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OrganizeMyMac" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content={m.ogLocale} />
+    {LOCALES.filter((l) => l !== locale).map((l) => <meta property="og:locale:alternate" content={meta[l].ogLocale} />)}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <link rel="icon" type="image/webp" href="/img/icons/app-320.webp" />
+    <link rel="apple-touch-icon" href="/img/icons/app-640.webp" />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    {ANALYTICS.src && ANALYTICS.domain && <script defer data-domain={ANALYTICS.domain} src={ANALYTICS.src}></script>}
+  </head>
+  <body data-tint="cleanup">
+    <slot />
+    <script>
+      import '../scripts/site.ts';
+    </script>
+  </body>
+</html>

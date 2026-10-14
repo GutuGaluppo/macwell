@@ -1,0 +1,6 @@
+/* Loaded only without JavaScript (CSP-safe replacement for an inline <noscript><style>). */
+@media (max-width: 860px) {
+  .menu-btn { display: none !important; }
+  .menu-panel { display: flex !important; }
+}
+.reveal { opacity: 1 !important; transform: none !important; }

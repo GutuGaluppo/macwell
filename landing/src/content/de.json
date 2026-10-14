@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "title": "OrganizeMyMac: bring deinen Mac in Ordnung, jeder Pfad vorab geprüft",
+    "description": "OrganizeMyMac findet Caches, Duplikate, App-Reste und vergessene Dateien, zeigt jeden Pfad und jede Größe und verschiebt sie erst dann in den Papierkorb. Läuft auf deinem Mac."
+  },
+  "nav": { "features": "Funktionen", "how": "So funktioniert's", "privacy": "Datenschutz", "faq": "FAQ", "menu": "Menü", "language": "Sprache", "skip": "Zum Inhalt springen", "main": "Hauptnavigation" },
+  "hero": {
+    "h1": "Dein Mac, in Ordnung. Nichts verschwindet ohne dein Ja.",
+    "sub": "OrganizeMyMac findet Caches, Duplikate, App-Reste und vergessene Dateien, zeigt dir jeden Pfad und jede Größe und verschiebt sie erst dann in den Papierkorb. Alles läuft auf deinem Mac.",
+    "cta1": "Für macOS laden",
+    "cta2": "So funktioniert's"
+  },
+  "trust": ["Läuft auf deinem Mac", "Jeden Pfad vorab prüfen", "Landet im Papierkorb", "Systemordner gesperrt"],
+  "principlesTitle": "Kontrolle statt Magie",
+  "principles": [
+    { "t": "Du prüfst alles", "d": "Jeder Pfad und jede Größe wird angezeigt, bevor etwas verschoben wird. Keine Überraschungen." },
+    { "t": "Es landet im Papierkorb", "d": "Alles bleibt wiederherstellbar. Mehr Sicherheit? Nutze die Quarantäne mit datiertem Ordner und CSV-Protokoll." },
+    { "t": "Systemordner sind gesperrt", "d": "/System, /usr, /bin, /private und /Library bleiben unberührt. Die App umgeht nie die Schutzmechanismen von macOS." },
+    { "t": "Bleibt auf deinem Mac", "d": "Kein Konto, und nichts über deine Dateien wird gesendet. Die Online-Suche nach App-Updates ist optional und fragt vorher nach." }
+  ],
+  "featuresTitle": "Sechs Module. Eine Regel: du entscheidest.",
+  "beta": "Beta",
+  "features": {
+    "cleanup": { "t": "Bereinigung", "d": "Caches, Protokolle, Entwickler-Reste, Browser und Mail, nach Risiko gruppiert." },
+    "apps": { "t": "Apps", "d": "Apps, die seit 6 Monaten ungenutzt sind, und was gelöschte Apps hinterlassen haben." },
+    "clutter": { "t": "Mein Chaos", "d": "Große und alte Dateien, exakte Duplikate, ähnliche Bilder." },
+    "projects": { "t": "Projekte", "d": "Git-Repos mit nicht gesendeter Arbeit und Ordner, die sich neu erzeugen lassen." },
+    "performance": { "t": "Leistung", "d": "CPU, Speicher, Festplatte und Akku live, und welche Apps am meisten belasten." },
+    "security": { "t": "Sicherheit (Beta)", "d": "Ein reiner Lesezugriff auf Autostart-Objekte und App-Signaturen. Kein Virenscanner." }
+  },
+  "howTitle": "Drei Schritte",
+  "steps": [
+    { "t": "Analysieren", "d": "Ein runder Knopf, nichts ändert sich." },
+    { "t": "Prüfen", "d": "Pfade und Größen ansehen, Gewünschtes markieren." },
+    { "t": "Bereinigen", "d": "Einmal bestätigen. Alles geht in den Papierkorb." }
+  ],
+  "proof": {
+    "title": "Jede Bereinigung zeigt, was sie tut",
+    "body": "Bevor etwas verschoben wird, listet der Prüfdialog jeden Pfad mit seiner Größe auf und sagt, wohin die Objekte gehen: in den Papierkorb, aus dem sie sich wiederherstellen lassen. Das Vorgangsprotokoll hält fest, was getan wurde.",
+    "items": ["Vollständiger Pfad und Größe jedes Objekts", "Aus dem Papierkorb wiederherstellbar", "Ein Vorgangsprotokoll des Geschehenen"]
+  },
+  "privacy": {
+    "title": "Privat von Grund auf",
+    "intro": "OrganizeMyMac läuft auf deinem Mac. Es gibt kein Konto, und nichts über deine Dateien wird gesendet. Statistiken bleiben auf deinem Mac. Die Online-Suche nach App-Updates ist optional und fragt vorher nach.",
+    "readTitle": "Was gelesen wird",
+    "read": ["Dateinamen, Pfade und Größen in den Bereichen, die du scannst", "Fingerabdrücke (BLAKE3), um exakte Duplikate zu finden", "Der Zustand deiner Git-Repositories", "Autostart-Objekte und App-Signaturen (Sicherheit, nur lesend)"],
+    "neverTitle": "Was nie angefasst wird",
+    "never": ["Systemordner: /System, /usr, /bin, /private, /Library", "Alles, was du nicht bestätigt hast", "Die Schutzmechanismen von macOS: sie werden nie umgangen"],
+    "link": "Datenschutzerklärung"
+  },
+  "download": {
+    "title": "Voraussetzungen und Download",
+    "version": "Version", "macos": "macOS", "arch": "Architektur", "price": "Preis", "checksum": "SHA-256", "notes": "Versionshinweise",
+    "soonTitle": "Noch nicht verfügbar",
+    "soonBody": "Der Download öffnet, sobald die App zur Veröffentlichung bereit ist. Hinterlasse deine E-Mail-Adresse, um zuerst Bescheid zu bekommen.",
+    "soonCta": "Per E-Mail benachrichtigen",
+    "mailSubject": "OrganizeMyMac: bitte zum Start benachrichtigen",
+    "cta": "Für macOS laden"
+  },
+  "faqTitle": "Fragen",
+  "faq": [
+    { "q": "Ist das sicher?", "a": "Es entfernt nie etwas ohne deine Bestätigung, sperrt Systemordner und verschiebt standardmäßig in den Papierkorb." },
+    { "q": "Sendet es meine Daten irgendwohin?", "a": "Nein. Die Analyse läuft auf deinem Mac. Die Online-Suche nach Updates ist optional und fragt vorher." },
+    { "q": "Ist es ein Virenscanner?", "a": "Nein. Das Sicherheitsmodul ist ein Beta-Audit von Autostart-Objekten und App-Signaturen, nur lesend." },
+    { "q": "Kann ich eine Bereinigung rückgängig machen?", "a": "Ja, über den Papierkorb (oder den Quarantäne-Ordner, falls gewählt), bis du ihn leerst." },
+    { "q": "Brauche ich Vollständigen Festplattenzugriff?", "a": "Nein. Ohne ihn bleiben einige geschützte Ordner unsichtbar; du kannst ihn jederzeit in den Systemeinstellungen erteilen." },
+    { "q": "Was kostet es?", "a": "{{PRICE}}" }
+  ],
+  "finalCta": { "title": "Bereit, deinen Mac in Ordnung zu bringen?", "cta": "Für macOS laden" },
+  "footer": { "privacy": "Datenschutzerklärung", "contact": "Kontakt", "rights": "© {year} OrganizeMyMac. Alle Rechte vorbehalten.", "trademark": "Mac und macOS sind Marken der Apple Inc." },
+  "media": {
+    "hero": { "alt": "Das OrganizeMyMac-Fenster: ein Bereinigungs-Scan endet in einem Raster aus Ergebnissen.", "caption": "Bereinigung: analysieren, scannen, Ergebnisse prüfen." },
+    "analyze": { "alt": "Startbildschirm von OrganizeMyMac mit einem runden Analysieren-Knopf." },
+    "review": { "alt": "OrganizeMyMac-Ergebnisse mit Pfaden und Größen zum Markieren." },
+    "clean": { "alt": "Bestätigung in OrganizeMyMac, bevor Objekte in den Papierkorb verschoben werden." },
+    "reviewDialog": { "alt": "Der Prüfdialog mit jedem Pfad und jeder Größe sowie dem Hinweis, dass Objekte in den Papierkorb gehen und wiederherstellbar sind." },
+    "log": { "alt": "Das Vorgangsprotokoll mit dem, was wann bereinigt wurde." },
+    "cleanup": { "alt": "Bereinigungsergebnisse, nach Risiko gruppiert." },
+    "apps": { "alt": "Apps: ungenutzte Apps und Reste gelöschter Apps." },
+    "clutter": { "alt": "Mein Chaos: große Dateien, Duplikate und ähnliche Bilder." },
+    "projects": { "alt": "Projekte: Git-Repositories mit nicht gesendeter Arbeit und neu erzeugbare Ordner." },
+    "performance": { "alt": "Leistung: Live-Anzeigen für CPU, Speicher, Festplatte und Akku." },
+    "security": { "alt": "Sicherheit (Beta): schreibgeschützte Liste von Autostart-Objekten und App-Signaturen." }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "title": "OrganizeMyMac: tidy your Mac, with every path reviewed first",
+    "description": "OrganizeMyMac finds caches, duplicates, leftovers and forgotten files, shows every path and size, and only then moves them to the Trash. Runs on your Mac."
+  },
+  "nav": { "features": "Features", "how": "How it works", "privacy": "Privacy", "faq": "FAQ", "menu": "Menu", "language": "Language", "skip": "Skip to content", "main": "Main navigation" },
+  "hero": {
+    "h1": "Your Mac, in order. Nothing leaves without your yes.",
+    "sub": "OrganizeMyMac finds caches, duplicates, leftovers and forgotten files, shows you every path and size, and only then moves them to the Trash. Everything runs on your Mac.",
+    "cta1": "Download for macOS",
+    "cta2": "See how it works"
+  },
+  "trust": ["Runs on your Mac", "Review every path first", "Goes to the Trash", "System folders locked"],
+  "principlesTitle": "Control, not magic",
+  "principles": [
+    { "t": "You review everything", "d": "Every path and size is shown before anything moves. No surprises." },
+    { "t": "It goes to the Trash", "d": "Items are recoverable. Prefer a safety net? Switch to Quarantine, with a dated folder and a CSV log." },
+    { "t": "System folders are locked", "d": "/System, /usr, /bin, /private and /Library are blocked. The app never works around macOS protections." },
+    { "t": "It stays on your Mac", "d": "No account and nothing about your files is sent anywhere. Checking for app updates online is optional and asks first." }
+  ],
+  "featuresTitle": "Six modules. One rule: you decide.",
+  "beta": "Beta",
+  "features": {
+    "cleanup": { "t": "Cleanup", "d": "Caches, logs, dev-tool leftovers, browsers and Mail, grouped by risk." },
+    "apps": { "t": "Applications", "d": "Apps unused for 6 months and what removed apps left behind." },
+    "clutter": { "t": "My Clutter", "d": "Large and old files, exact duplicates, look-alike images." },
+    "projects": { "t": "Projects", "d": "Git repos with unpushed work and folders you can regenerate." },
+    "performance": { "t": "Performance", "d": "Live CPU, memory, disk and battery, and which apps weigh most." },
+    "security": { "t": "Security (beta)", "d": "A read-only look at what starts on its own and how apps are signed. Not an antivirus." }
+  },
+  "howTitle": "Three steps",
+  "steps": [
+    { "t": "Analyze", "d": "Press one round button. Nothing changes." },
+    { "t": "Review", "d": "See paths and sizes, tick what you want gone." },
+    { "t": "Clean", "d": "Confirm once. Items go to the Trash." }
+  ],
+  "proof": {
+    "title": "Every cleanup shows its work",
+    "body": "Before anything moves, the review dialog lists each path and its size and says where the items go: the Trash, where they can be recovered. The operations log keeps a record of what was done.",
+    "items": ["Full path and size for every item", "Recoverable from the Trash", "An operations log of what was done"]
+  },
+  "privacy": {
+    "title": "Private by design",
+    "intro": "OrganizeMyMac runs on your Mac. There is no account, and nothing about your files is sent anywhere. Statistics stay on your Mac. Checking for app updates online is optional and asks first.",
+    "readTitle": "What it reads",
+    "read": ["File names, paths and sizes in the places you scan", "Fingerprints (BLAKE3) to find exact duplicates", "The state of your git repositories", "Start-up items and app signatures (Security, read-only)"],
+    "neverTitle": "What it never touches",
+    "never": ["System folders: /System, /usr, /bin, /private, /Library", "Anything you did not confirm", "macOS protections: it never works around them"],
+    "link": "Privacy policy"
+  },
+  "download": {
+    "title": "Requirements and download",
+    "version": "Version", "macos": "macOS", "arch": "Architecture", "price": "Price", "checksum": "SHA-256", "notes": "Release notes",
+    "soonTitle": "Not available yet",
+    "soonBody": "The download opens when the app is ready for release. Leave your email to be told first.",
+    "soonCta": "Get notified by email",
+    "mailSubject": "OrganizeMyMac: notify me at launch",
+    "cta": "Download for macOS"
+  },
+  "faqTitle": "Questions",
+  "faq": [
+    { "q": "Is it safe?", "a": "It never removes anything without your confirmation, blocks system folders, and sends items to the Trash by default." },
+    { "q": "Does it send my data anywhere?", "a": "No. Analysis runs on your Mac. Online update checks are optional and ask first." },
+    { "q": "Is it an antivirus?", "a": "No. The Security module is a beta, read-only audit of start-up items and app signatures." },
+    { "q": "Can I undo a cleanup?", "a": "Yes, from the Trash (or from the Quarantine folder, if you chose that mode) until you empty it." },
+    { "q": "Do I need Full Disk Access?", "a": "No. Without it some protected folders stay invisible; you can grant it any time in System Settings." },
+    { "q": "What does it cost?", "a": "{{PRICE}}" }
+  ],
+  "finalCta": { "title": "Ready to put your Mac in order?", "cta": "Download for macOS" },
+  "footer": { "privacy": "Privacy policy", "contact": "Contact", "rights": "© {year} OrganizeMyMac. All rights reserved.", "trademark": "Mac and macOS are trademarks of Apple Inc." },
+  "media": {
+    "hero": { "alt": "The OrganizeMyMac window: a Cleanup scan finishing in a grid of results.", "caption": "Cleanup: analyze, scan, then review the results." },
+    "analyze": { "alt": "OrganizeMyMac start screen with one round Analyze button." },
+    "review": { "alt": "OrganizeMyMac results with paths and sizes ready to tick." },
+    "clean": { "alt": "OrganizeMyMac confirmation before items move to the Trash." },
+    "reviewDialog": { "alt": "The review dialog listing each path and size, with the note that items go to the Trash and can be recovered." },
+    "log": { "alt": "The operations log listing what was cleaned and when." },
+    "cleanup": { "alt": "Cleanup results grouped by risk." },
+    "apps": { "alt": "Applications: unused apps and leftovers of removed apps." },
+    "clutter": { "alt": "My Clutter: large files, duplicates and similar images." },
+    "projects": { "alt": "Projects: git repositories with unpushed work and regenerable folders." },
+    "performance": { "alt": "Performance: live CPU, memory, disk and battery gauges." },
+    "security": { "alt": "Security (beta): a read-only list of start-up items and app signatures." }
+  }
+}

@@ -1,0 +1,13 @@
+---
+import { LOCALES, banner, meta, type Locale } from '../i18n/locales';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<div class="lang-banner glass" data-lang-banner hidden role="region" aria-label="Language">
+  {LOCALES.filter((l) => l !== locale).map((l) => (
+    <>
+      <p data-for={l} lang={meta[l].htmlLang} hidden>{banner[l].text} <a href={`/${l}/`} hreflang={meta[l].htmlLang}><strong>{banner[l].action}</strong></a></p>
+    </>
+  ))}
+  <button class="btn btn-quiet btn-sm" type="button" data-dismiss aria-label="×">×</button>
+</div>

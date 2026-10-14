@@ -1,0 +1,38 @@
+---
+// A screenshot or video slot. If the real file exists in public/media (or PUBLIC_MEDIA_BASE is set and
+// the asset is listed), it renders; otherwise it renders a neutral placeholder with the same aspect ratio.
+import fs from 'node:fs';
+import path from 'node:path';
+import { MEDIA_BASE } from '../config';
+
+interface Props { name: string; alt: string; kind?: 'shot' | 'video'; width?: number; height?: number; eager?: boolean; caption?: string }
+const { name, alt, kind = 'shot', width = 2400, height = 1560, eager = false, caption } = Astro.props;
+
+const local = path.resolve('public/media', kind === 'video' ? 'video' : 'shots');
+const has = (f: string) => fs.existsSync(path.join(local, f));
+const dir = kind === 'video' ? 'video' : 'shots';
+const url = (f: string) => `${MEDIA_BASE}/${dir}/${f}`;
+const hasMp4 = kind === 'video' && has(`${name}.mp4`);
+const hasShot = kind === 'shot' && (has(`${name}.avif`) || has(`${name}.webp`) || has(`${name}.png`));
+const poster = has(`${name}-poster.avif`) ? url(`${name}-poster.avif`) : has(`${name}-poster.jpg`) ? url(`${name}-poster.jpg`) : undefined;
+---
+<figure>
+  <div class="window">
+    <div class="chrome" aria-hidden="true"><i></i><i></i><i></i></div>
+    {hasMp4 ? (
+      <video class="app-video" muted loop playsinline preload="none" poster={poster} width={width} height={height} aria-label={alt}>
+        {has(`${name}.webm`) && <source src={url(`${name}.webm`)} type="video/webm" />}
+        <source src={url(`${name}.mp4`)} type="video/mp4" />
+      </video>
+    ) : hasShot ? (
+      <picture>
+        {has(`${name}.avif`) && <source type="image/avif" srcset={url(`${name}.avif`)} />}
+        {has(`${name}.webp`) && <source type="image/webp" srcset={url(`${name}.webp`)} />}
+        <img src={url(has(`${name}.png`) ? `${name}.png` : `${name}.webp`)} width={width} height={height} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" />
+      </picture>
+    ) : (
+      <div class="ph" role="img" aria-label={alt} data-placeholder={name}></div>
+    )}
+  </div>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>

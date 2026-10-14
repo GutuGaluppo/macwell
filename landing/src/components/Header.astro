@@ -1,0 +1,28 @@
+---
+import { LOCALES, meta, type Content, type Locale } from '../i18n/locales';
+interface Props { t: Content; locale: Locale }
+const { t, locale } = Astro.props;
+const short: Record<Locale, string> = { en: 'EN', 'pt-br': 'PT', es: 'ES', de: 'DE' };
+---
+<header class="site-header wrap">
+  <div class="bar glass">
+    <a class="wordmark" href={`/${locale}/`}>OrganizeMyMac</a>
+    <div class="menu">
+      <button class="menu-btn btn btn-quiet btn-sm" type="button" aria-expanded="false" aria-controls="menu-panel" data-menu-btn>{t.nav.menu}</button>
+      <div class="menu-panel" id="menu-panel">
+        <nav class="nav-links" aria-label={t.nav.main}>
+          <a href="#features">{t.nav.features}</a>
+          <a href="#how">{t.nav.how}</a>
+          <a href="#privacy">{t.nav.privacy}</a>
+          <a href="#faq">{t.nav.faq}</a>
+        </nav>
+        <nav class="langs" aria-label={t.nav.language}>
+          {LOCALES.map((l) => (
+            <a href={`/${l}/`} hreflang={meta[l].htmlLang} lang={meta[l].htmlLang} title={meta[l].name} aria-label={meta[l].name} aria-current={l === locale ? 'true' : undefined}>{short[l]}</a>
+          ))}
+        </nav>
+      </div>
+    </div>
+    <a class="btn btn-primary btn-sm bar-cta" href="#download">{t.hero.cta1}</a>
+  </div>
+</header>

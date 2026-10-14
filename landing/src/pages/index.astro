@@ -1,0 +1,28 @@
+---
+import '../styles/global.css';
+import { LOCALES, meta } from '../i18n/locales';
+import { SITE_URL } from '../config';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OrganizeMyMac</title>
+    <meta name="description" content="OrganizeMyMac for macOS: English, Português, Español, Deutsch." />
+    <link rel="canonical" href={`${SITE_URL}/`} />
+    {LOCALES.map((l) => <link rel="alternate" hreflang={meta[l].htmlLang} href={`${SITE_URL}/${l}/`} />)}
+    <link rel="alternate" hreflang="x-default" href={`${SITE_URL}/`} />
+    <link rel="icon" type="image/webp" href="/img/icons/app-320.webp" />
+  </head>
+  <body data-tint="cleanup">
+    <main class="picker">
+      <div>
+        <h1>OrganizeMyMac</h1>
+        <ul>
+          {LOCALES.map((l) => <li><a class="glass" href={`/${l}/`} hreflang={meta[l].htmlLang} lang={meta[l].htmlLang}>{meta[l].name}</a></li>)}
+        </ul>
+      </div>
+    </main>
+  </body>
+</html>

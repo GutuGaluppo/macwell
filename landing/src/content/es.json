@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "title": "OrganizeMyMac: ordena tu Mac, con cada ruta revisada antes",
+    "description": "OrganizeMyMac encuentra cachés, duplicados, restos de apps y archivos olvidados, te muestra cada ruta y tamaño y solo entonces los mueve a la Papelera. Funciona en tu Mac."
+  },
+  "nav": { "features": "Funciones", "how": "Cómo funciona", "privacy": "Privacidad", "faq": "Preguntas", "menu": "Menú", "language": "Idioma", "skip": "Saltar al contenido", "main": "Navegación principal" },
+  "hero": {
+    "h1": "Tu Mac, en orden. Nada se va sin tu visto bueno.",
+    "sub": "OrganizeMyMac encuentra cachés, duplicados, restos de apps y archivos olvidados, te muestra cada ruta y tamaño y solo entonces los mueve a la Papelera. Todo funciona en tu Mac.",
+    "cta1": "Descargar para macOS",
+    "cta2": "Ver cómo funciona"
+  },
+  "trust": ["Funciona en tu Mac", "Revisa cada ruta antes", "Va a la Papelera", "Carpetas del sistema bloqueadas"],
+  "principlesTitle": "Control, no magia",
+  "principles": [
+    { "t": "Tú lo revisas todo", "d": "Cada ruta y tamaño se muestra antes de mover nada. Sin sorpresas." },
+    { "t": "Va a la Papelera", "d": "Los elementos se pueden recuperar. ¿Prefieres más seguridad? Usa la Cuarentena, con carpeta fechada y registro en CSV." },
+    { "t": "Carpetas del sistema bloqueadas", "d": "/System, /usr, /bin, /private y /Library están protegidas. La app nunca esquiva las protecciones de macOS." },
+    { "t": "Se queda en tu Mac", "d": "Sin cuenta y nada sobre tus archivos se envía. Buscar actualizaciones en línea es opcional y te lo pregunta antes." }
+  ],
+  "featuresTitle": "Seis módulos. Una regla: tú decides.",
+  "beta": "Beta",
+  "features": {
+    "cleanup": { "t": "Limpieza", "d": "Cachés, registros, restos de herramientas, navegadores y Mail, agrupados por riesgo." },
+    "apps": { "t": "Aplicaciones", "d": "Apps sin uso en 6 meses y lo que dejaron las apps eliminadas." },
+    "clutter": { "t": "Mi desorden", "d": "Archivos grandes y antiguos, duplicados exactos e imágenes parecidas." },
+    "projects": { "t": "Proyectos", "d": "Repositorios git con trabajo sin enviar y carpetas que puedes regenerar." },
+    "performance": { "t": "Rendimiento", "d": "CPU, memoria, disco y batería en vivo, y qué apps pesan más." },
+    "security": { "t": "Seguridad (beta)", "d": "Una lectura, sin cambiar nada, de lo que se inicia solo y de cómo están firmadas las apps. No es un antivirus." }
+  },
+  "howTitle": "Tres pasos",
+  "steps": [
+    { "t": "Analizar", "d": "Pulsa un botón redondo. No cambia nada." },
+    { "t": "Revisar", "d": "Mira rutas y tamaños y marca lo que quieres quitar." },
+    { "t": "Limpiar", "d": "Confirma una vez. Los elementos van a la Papelera." }
+  ],
+  "proof": {
+    "title": "Cada limpieza muestra lo que hizo",
+    "body": "Antes de mover nada, la ventana de revisión enumera cada ruta y su tamaño e indica adónde van los elementos: la Papelera, de donde se pueden recuperar. El registro de operaciones guarda lo que se hizo.",
+    "items": ["Ruta completa y tamaño de cada elemento", "Recuperable desde la Papelera", "Un registro de operaciones de lo que se hizo"]
+  },
+  "privacy": {
+    "title": "Privado por diseño",
+    "intro": "OrganizeMyMac funciona en tu Mac. No hay cuenta y nada sobre tus archivos se envía. Las estadísticas se quedan en tu Mac. Buscar actualizaciones en línea es opcional y te lo pregunta antes.",
+    "readTitle": "Qué lee",
+    "read": ["Nombres, rutas y tamaños de archivos en los lugares que analizas", "Huellas (BLAKE3) para encontrar duplicados exactos", "El estado de tus repositorios git", "Elementos de inicio y firmas de apps (Seguridad, solo lectura)"],
+    "neverTitle": "Qué nunca toca",
+    "never": ["Carpetas del sistema: /System, /usr, /bin, /private, /Library", "Nada que no hayas confirmado", "Las protecciones de macOS: nunca las esquiva"],
+    "link": "Política de privacidad"
+  },
+  "download": {
+    "title": "Requisitos y descarga",
+    "version": "Versión", "macos": "macOS", "arch": "Arquitectura", "price": "Precio", "checksum": "SHA-256", "notes": "Notas de la versión",
+    "soonTitle": "Todavía no disponible",
+    "soonBody": "La descarga se abre cuando la app esté lista para su lanzamiento. Deja tu correo para que te avisemos primero.",
+    "soonCta": "Avisarme por correo",
+    "mailSubject": "OrganizeMyMac: avísenme en el lanzamiento",
+    "cta": "Descargar para macOS"
+  },
+  "faqTitle": "Preguntas",
+  "faq": [
+    { "q": "¿Es seguro?", "a": "Nunca elimina nada sin tu confirmación, bloquea las carpetas del sistema y envía los elementos a la Papelera por defecto." },
+    { "q": "¿Envía mis datos a algún sitio?", "a": "No. El análisis se ejecuta en tu Mac. Buscar actualizaciones en línea es opcional y pide permiso." },
+    { "q": "¿Es un antivirus?", "a": "No. El módulo Seguridad es una auditoría beta, de solo lectura, de elementos de inicio y firmas de apps." },
+    { "q": "¿Puedo deshacer una limpieza?", "a": "Sí, desde la Papelera (o desde la carpeta de Cuarentena, si elegiste ese modo) hasta que la vacíes." },
+    { "q": "¿Necesito Acceso Total al Disco?", "a": "No. Sin él, algunas carpetas protegidas quedan ocultas; puedes concederlo cuando quieras en Ajustes del Sistema." },
+    { "q": "¿Cuánto cuesta?", "a": "{{PRICE}}" }
+  ],
+  "finalCta": { "title": "¿Listo para poner tu Mac en orden?", "cta": "Descargar para macOS" },
+  "footer": { "privacy": "Política de privacidad", "contact": "Contacto", "rights": "© {year} OrganizeMyMac. Todos los derechos reservados.", "trademark": "Mac y macOS son marcas registradas de Apple Inc." },
+  "media": {
+    "hero": { "alt": "La ventana de OrganizeMyMac: un análisis de Limpieza terminando en una cuadrícula de resultados.", "caption": "Limpieza: analizar, explorar y revisar los resultados." },
+    "analyze": { "alt": "Pantalla inicial de OrganizeMyMac con un botón redondo Analizar." },
+    "review": { "alt": "Resultados de OrganizeMyMac con rutas y tamaños listos para marcar." },
+    "clean": { "alt": "Confirmación de OrganizeMyMac antes de mover los elementos a la Papelera." },
+    "reviewDialog": { "alt": "La ventana de revisión con cada ruta y tamaño, y la nota de que los elementos van a la Papelera y se pueden recuperar." },
+    "log": { "alt": "El registro de operaciones con lo que se limpió y cuándo." },
+    "cleanup": { "alt": "Resultados de Limpieza agrupados por riesgo." },
+    "apps": { "alt": "Aplicaciones: apps sin uso y restos de apps eliminadas." },
+    "clutter": { "alt": "Mi desorden: archivos grandes, duplicados e imágenes parecidas." },
+    "projects": { "alt": "Proyectos: repositorios git con trabajo sin enviar y carpetas regenerables." },
+    "performance": { "alt": "Rendimiento: indicadores en vivo de CPU, memoria, disco y batería." },
+    "security": { "alt": "Seguridad (beta): lista de solo lectura de elementos de inicio y firmas de apps." }
+  }
+}

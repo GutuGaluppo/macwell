@@ -1,0 +1,215 @@
+---
+import Base from '../../layouts/Base.astro';
+import Header from '../../components/Header.astro';
+import Icon from '../../components/Icon.astro';
+import Shot from '../../components/Shot.astro';
+import Banner from '../../components/Banner.astro';
+import { LOCALES, content, meta, type Locale } from '../../i18n/locales';
+import { CONTACT_EMAIL, DOWNLOAD_LIVE, PRIVACY_URL, SITE_URL, fill, values } from '../../config';
+
+export function getStaticPaths() {
+  return LOCALES.map((locale) => ({ params: { locale } }));
+}
+
+const locale = Astro.params.locale as Locale;
+const t = content[locale];
+const year = new Date().getFullYear();
+const mailto = CONTACT_EMAIL
+  ? `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t.download.mailSubject)}`
+  : '';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'OrganizeMyMac',
+  operatingSystem: 'macOS',
+  applicationCategory: 'UtilitiesApplication',
+  description: t.meta.description,
+  url: `${SITE_URL}/${locale}/`,
+  inLanguage: meta[locale].htmlLang,
+};
+
+const bento = [
+  { key: 'cleanup', icon: 'clean', tint: '#3ee0a2', area: 'a', shot: 'cleanup-results' },
+  { key: 'apps', icon: 'apps', tint: '#3fd9f0', area: 'b', shot: 'applications-results' },
+  { key: 'clutter', icon: 'clutter', tint: '#b69bff', area: 'c', shot: 'clutter-results' },
+  { key: 'projects', icon: 'projects', tint: '#ffd166', area: 'd', shot: 'projects-results' },
+] as const;
+const compact = [
+  { key: 'performance', icon: 'performance', tint: '#ffa04d', beta: false },
+  { key: 'security', icon: 'security', tint: '#6cb0ff', beta: true },
+] as const;
+const steps = [
+  { m: 'analyze', shot: 'step-analyze' },
+  { m: 'review', shot: 'step-review' },
+  { m: 'clean', shot: 'step-clean' },
+] as const;
+---
+<Base locale={locale} title={t.meta.title} description={t.meta.description} jsonLd={jsonLd}>
+  <a class="skip" href="#main">{t.nav.skip}</a>
+  <Header t={t} locale={locale} />
+
+  <main id="main">
+    <section class="hero wrap" data-tint-section="cleanup" aria-labelledby="h1">
+      <div class="hero-copy">
+        <h1 id="h1">{t.hero.h1}</h1>
+        <p class="lede">{t.hero.sub}</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#download">{t.hero.cta1}</a>
+          <a class="btn btn-quiet" href="#how">{t.hero.cta2}</a>
+        </div>
+        <ul class="trust">{t.trust.map((x) => <li>{x}</li>)}</ul>
+      </div>
+      <div class="hero-stage">
+        <div class="float f1" data-depth="0.04"><Icon name="clean" size={150} eager /></div>
+        <div class="float f2" data-depth="-0.03"><Icon name="security" size={150} eager /></div>
+        <div class="float f3" data-depth="0.06"><Icon name="app" size={104} /></div>
+        <Shot kind="video" name="hero-cleanup" alt={t.media.hero.alt} width={1200} height={780} caption={t.media.hero.caption} eager />
+      </div>
+    </section>
+
+    <section class="block wrap" data-tint-section="settings" aria-labelledby="principles-h">
+      <h2 id="principles-h">{t.principlesTitle}</h2>
+      <div class="grid-4">
+        {t.principles.map((p, i) => (
+          <article class="glass card reveal" style={`--i:${i}`}>
+            <span class="num" aria-hidden="true">{i + 1}</span>
+            <h3>{p.t}</h3>
+            <p>{p.d}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section id="features" class="block wrap" data-tint-section="apps" aria-labelledby="features-h">
+      <h2 id="features-h">{t.featuresTitle}</h2>
+      <div class="bento">
+        {bento.map((b, i) => (
+          <article class={`glass tile ${b.area} reveal`} style={`--t:${b.tint};--i:${i}`}>
+            <h3>{t.features[b.key].t}</h3>
+            <p>{t.features[b.key].d}</p>
+            <Icon name={b.icon} size={84} />
+            <div class="shot"><Shot name={b.shot} alt={t.media[b.key === 'cleanup' ? 'cleanup' : b.key].alt} width={1200} height={780} /></div>
+          </article>
+        ))}
+      </div>
+      <div class="compact">
+        {compact.map((c, i) => (
+          <article class="glass tile reveal" style={`--t:${c.tint};--i:${i + 4}`}>
+            <Icon name={c.icon} size={84} />
+            <div>
+              <h3>{t.features[c.key].t}{c.beta && <span class="badge">{t.beta}</span>}</h3>
+              <p>{t.features[c.key].d}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section id="how" class="block wrap" data-tint-section="cleanup" aria-labelledby="how-h">
+      <h2 id="how-h">{t.howTitle}</h2>
+      <ol class="steps">
+        {steps.map((s, i) => (
+          <li class="glass reveal" style={`--i:${i}`}>
+            <Shot name={s.shot} alt={t.media[s.m].alt} width={1200} height={780} />
+            <h3>{t.steps[i].t}</h3>
+            <p>{t.steps[i].d}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="block wrap" data-tint-section="dev" aria-labelledby="proof-h">
+      <div class="split flip">
+        <div class="reveal">
+          <Shot name="review-dialog" alt={t.media.reviewDialog.alt} width={1200} height={780} />
+        </div>
+        <div class="stack">
+          <h2 id="proof-h">{t.proof.title}</h2>
+          <p class="lede">{t.proof.body}</p>
+          <ul class="ticks">{t.proof.items.map((x) => <li>{x}</li>)}</ul>
+        </div>
+      </div>
+      <div class="reveal" style="margin-top:32px;max-width:760px">
+        <Shot name="operations-log" alt={t.media.log.alt} width={1200} height={780} />
+      </div>
+    </section>
+
+    <section id="privacy" class="block wrap" data-tint-section="security" aria-labelledby="privacy-h">
+      <h2 id="privacy-h">{t.privacy.title}</h2>
+      <p class="lede" style="margin-top:20px">{t.privacy.intro}</p>
+      <div class="two-lists">
+        <div class="glass card reveal">
+          <h3>{t.privacy.readTitle}</h3>
+          <ul class="ticks">{t.privacy.read.map((x) => <li>{x}</li>)}</ul>
+        </div>
+        <div class="glass card reveal" style="--i:1">
+          <h3>{t.privacy.neverTitle}</h3>
+          <ul class="ticks never">{t.privacy.never.map((x) => <li>{x}</li>)}</ul>
+        </div>
+      </div>
+      <p style="margin-top:20px"><a href={PRIVACY_URL}>{t.privacy.link}</a></p>
+    </section>
+
+    <section id="download" class="block wrap" data-tint-section="cleanup" aria-labelledby="download-h">
+      <h2 id="download-h">{t.download.title}</h2>
+      <dl class="glass spec">
+        <div><dt>{t.download.version}</dt><dd>{values.VERSION}</dd></div>
+        <div><dt>{t.download.macos}</dt><dd>{values.MIN_MACOS}</dd></div>
+        <div><dt>{t.download.arch}</dt><dd>{values.ARCH}</dd></div>
+        <div><dt>{t.download.price}</dt><dd>{values.PRICE}</dd></div>
+      </dl>
+      {DOWNLOAD_LIVE ? (
+        <div class="glass notice">
+          <div>
+            <h3>{t.download.checksum}</h3>
+            <p class="checksum">{values.SHA256}</p>
+            <p style="margin-top:8px"><a href={values.RELEASE_NOTES_URL}>{t.download.notes}</a></p>
+          </div>
+          <a class="btn btn-primary" href={values.DMG_URL} download>{t.download.cta}</a>
+        </div>
+      ) : (
+        <div class="glass notice">
+          <div>
+            <h3>{t.download.soonTitle}</h3>
+            <p>{t.download.soonBody}</p>
+          </div>
+          {mailto
+            ? <a class="btn btn-primary" href={mailto}>{t.download.soonCta}</a>
+            : <span class="btn btn-quiet" aria-disabled="true">{`{{CONTACT_EMAIL}}`}</span>}
+        </div>
+      )}
+    </section>
+
+    <section id="faq" class="block wrap" data-tint-section="clutter" aria-labelledby="faq-h">
+      <h2 id="faq-h">{t.faqTitle}</h2>
+      <div class="faq">
+        {t.faq.map((f) => (
+          <details class="glass" name="faq">
+            <summary>{f.q}</summary>
+            <p>{fill(f.a)}</p>
+          </details>
+        ))}
+      </div>
+    </section>
+
+    <section class="block wrap" data-tint-section="smartCare" aria-labelledby="final-h">
+      <div class="glass final">
+        <h2 id="final-h">{t.finalCta.title}</h2>
+        <div class="cta-row"><a class="btn btn-primary" href="#download">{t.finalCta.cta}</a></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <div class="foot">
+      <p>{t.footer.rights.replace('{year}', String(year))} {t.footer.trademark}</p>
+      <nav aria-label="Footer">
+        <a href={PRIVACY_URL}>{t.footer.privacy}</a>
+        {CONTACT_EMAIL ? <a href={`mailto:${CONTACT_EMAIL}`}>{t.footer.contact}</a> : <span>{t.footer.contact}: {`{{CONTACT_EMAIL}}`}</span>}
+        {LOCALES.map((l) => <a href={`/${l}/`} hreflang={meta[l].htmlLang} lang={meta[l].htmlLang} aria-current={l === locale ? 'true' : undefined}>{meta[l].name}</a>)}
+      </nav>
+    </div>
+  </footer>
+  <Banner locale={locale} />
+</Base>

@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "title": "OrganizeMyMac: organize seu Mac, com cada caminho revisado antes",
+    "description": "O OrganizeMyMac encontra caches, duplicados, restos de apps e arquivos esquecidos, mostra cada caminho e tamanho e só então move tudo para a Lixeira. Roda no seu Mac."
+  },
+  "nav": { "features": "Recursos", "how": "Como funciona", "privacy": "Privacidade", "faq": "Perguntas", "menu": "Menu", "language": "Idioma", "skip": "Ir para o conteúdo", "main": "Navegação principal" },
+  "hero": {
+    "h1": "Seu Mac em ordem. Nada sai sem o seu sim.",
+    "sub": "O OrganizeMyMac encontra caches, duplicados, restos de apps e arquivos esquecidos, mostra cada caminho e tamanho e só então move tudo para a Lixeira. Tudo roda no seu Mac.",
+    "cta1": "Baixar para macOS",
+    "cta2": "Ver como funciona"
+  },
+  "trust": ["Roda no seu Mac", "Revise cada caminho antes", "Vai para a Lixeira", "Pastas do sistema bloqueadas"],
+  "principlesTitle": "Controle, não mágica",
+  "principles": [
+    { "t": "Você revisa tudo", "d": "Cada caminho e tamanho aparece antes de qualquer coisa ser movida. Sem surpresas." },
+    { "t": "Vai para a Lixeira", "d": "Os itens podem ser recuperados. Quer mais uma camada? Use a Quarentena, com pasta datada e registro em CSV." },
+    { "t": "Pastas do sistema bloqueadas", "d": "/System, /usr, /bin, /private e /Library não são tocadas. O app nunca contorna as proteções do macOS." },
+    { "t": "Fica no seu Mac", "d": "Sem conta e nada sobre seus arquivos é enviado. Verificar atualizações online é opcional e pede sua permissão." }
+  ],
+  "featuresTitle": "Seis módulos. Uma regra: você decide.",
+  "beta": "Beta",
+  "features": {
+    "cleanup": { "t": "Limpeza", "d": "Caches, registros, sobras de ferramentas, navegadores e Mail, agrupados por risco." },
+    "apps": { "t": "Aplicativos", "d": "Apps sem uso há 6 meses e o que apps removidos deixaram." },
+    "clutter": { "t": "Minha bagunça", "d": "Arquivos grandes e antigos, duplicados exatos e imagens parecidas." },
+    "projects": { "t": "Projetos", "d": "Repositórios git com trabalho não enviado e pastas que dá para regenerar." },
+    "performance": { "t": "Desempenho", "d": "CPU, memória, disco e bateria ao vivo, e quais apps pesam mais." },
+    "security": { "t": "Segurança (beta)", "d": "Uma leitura, sem alterar nada, do que inicia sozinho e de como os apps são assinados. Não é antivírus." }
+  },
+  "howTitle": "Três passos",
+  "steps": [
+    { "t": "Analisar", "d": "Aperte um botão redondo. Nada muda." },
+    { "t": "Revisar", "d": "Veja caminhos e tamanhos e marque o que quer remover." },
+    { "t": "Limpar", "d": "Confirme uma vez. Os itens vão para a Lixeira." }
+  ],
+  "proof": {
+    "title": "Cada limpeza mostra o que fez",
+    "body": "Antes de mover qualquer coisa, a janela de revisão lista cada caminho e seu tamanho e informa para onde os itens vão: a Lixeira, de onde podem ser recuperados. O registro de operações guarda o que foi feito.",
+    "items": ["Caminho completo e tamanho de cada item", "Recuperável pela Lixeira", "Um registro de operações do que foi feito"]
+  },
+  "privacy": {
+    "title": "Privado por princípio",
+    "intro": "O OrganizeMyMac roda no seu Mac. Não há conta e nada sobre seus arquivos é enviado. As estatísticas ficam no seu Mac. Verificar atualizações online é opcional e pede sua permissão.",
+    "readTitle": "O que ele lê",
+    "read": ["Nomes, caminhos e tamanhos de arquivos nos lugares que você analisa", "Impressões digitais (BLAKE3) para achar duplicados exatos", "O estado dos seus repositórios git", "Itens de início e assinaturas de apps (Segurança, somente leitura)"],
+    "neverTitle": "O que ele nunca toca",
+    "never": ["Pastas do sistema: /System, /usr, /bin, /private, /Library", "Qualquer coisa que você não confirmou", "As proteções do macOS: ele nunca as contorna"],
+    "link": "Política de privacidade"
+  },
+  "download": {
+    "title": "Requisitos e download",
+    "version": "Versão", "macos": "macOS", "arch": "Arquitetura", "price": "Preço", "checksum": "SHA-256", "notes": "Notas da versão",
+    "soonTitle": "Ainda não disponível",
+    "soonBody": "O download abre quando o app estiver pronto para lançamento. Deixe seu e-mail para ser avisado primeiro.",
+    "soonCta": "Receber aviso por e-mail",
+    "mailSubject": "OrganizeMyMac: avisem-me no lançamento",
+    "cta": "Baixar para macOS"
+  },
+  "faqTitle": "Perguntas",
+  "faq": [
+    { "q": "É seguro?", "a": "Nunca remove nada sem a sua confirmação, bloqueia pastas do sistema e envia os itens para a Lixeira por padrão." },
+    { "q": "Envia meus dados para algum lugar?", "a": "Não. A análise roda no seu Mac. Verificar atualizações online é opcional e pede permissão." },
+    { "q": "É um antivírus?", "a": "Não. O módulo Segurança é uma auditoria beta, somente leitura, de itens de início e assinaturas de apps." },
+    { "q": "Posso desfazer uma limpeza?", "a": "Sim, pela Lixeira (ou pela pasta de Quarentena, se você escolheu esse modo) até esvaziá-la." },
+    { "q": "Preciso do Acesso Total ao Disco?", "a": "Não. Sem ele, algumas pastas protegidas ficam invisíveis; você pode conceder quando quiser em Ajustes do Sistema." },
+    { "q": "Quanto custa?", "a": "{{PRICE}}" }
+  ],
+  "finalCta": { "title": "Pronto para deixar seu Mac em ordem?", "cta": "Baixar para macOS" },
+  "footer": { "privacy": "Política de privacidade", "contact": "Contato", "rights": "© {year} OrganizeMyMac. Todos os direitos reservados.", "trademark": "Mac e macOS são marcas registradas da Apple Inc." },
+  "media": {
+    "hero": { "alt": "A janela do OrganizeMyMac: uma análise de Limpeza terminando em uma grade de resultados.", "caption": "Limpeza: analisar, varrer e revisar os resultados." },
+    "analyze": { "alt": "Tela inicial do OrganizeMyMac com um botão redondo Analisar." },
+    "review": { "alt": "Resultados do OrganizeMyMac com caminhos e tamanhos prontos para marcar." },
+    "clean": { "alt": "Confirmação do OrganizeMyMac antes de mover os itens para a Lixeira." },
+    "reviewDialog": { "alt": "A janela de revisão listando cada caminho e tamanho, com a informação de que os itens vão para a Lixeira e podem ser recuperados." },
+    "log": { "alt": "O registro de operações listando o que foi limpo e quando." },
+    "cleanup": { "alt": "Resultados da Limpeza agrupados por risco." },
+    "apps": { "alt": "Aplicativos: apps sem uso e restos de apps removidos." },
+    "clutter": { "alt": "Minha bagunça: arquivos grandes, duplicados e imagens parecidas." },
+    "projects": { "alt": "Projetos: repositórios git com trabalho não enviado e pastas regeneráveis." },
+    "performance": { "alt": "Desempenho: medidores ao vivo de CPU, memória, disco e bateria." },
+    "security": { "alt": "Segurança (beta): lista somente leitura de itens de início e assinaturas de apps." }
+  }
+}
