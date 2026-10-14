@@ -32,7 +32,7 @@ export function App() {
   const [onboarded, setOnboarded] = useState(hasOnboarded);
 
   return (
-    <div data-tint={moduleOf(section)?.id ?? "default"} className="page-canvas flex h-full">
+    <div data-tint={section === "settings" ? "settings" : (moduleOf(section)?.id ?? "default")} className="page-canvas flex h-full">
       <Sidebar />
       <main className="min-w-0 flex-1 overflow-hidden">
         {section === "overview" && <OverviewPage />}
