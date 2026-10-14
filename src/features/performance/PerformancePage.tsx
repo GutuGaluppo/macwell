@@ -22,13 +22,13 @@ function duration(secs: number): string {
 }
 
 function Sparkline({ values, max = 100 }: { values: number[]; max?: number }) {
-  if (values.length < 2) return <div className="h-[110px]" />;
+  if (values.length < 2) return <div className="h-[clamp(48px,12vh,110px)]" />;
   const w = 220;
   const h = 40;
   const last = values.length - 1;
   const pts = values.map((v, i) => `${(i / last) * w},${h - (Math.min(v, max) / max) * (h - 2) - 1}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-[110px] w-full" preserveAspectRatio="none" aria-hidden>
+    <svg viewBox={`0 0 ${w} ${h}`} className="h-[clamp(48px,12vh,110px)] w-full" preserveAspectRatio="none" aria-hidden>
       <polyline points={`0,${h} ${pts} ${w},${h}`} fill="var(--accent-soft)" stroke="none" />
       <polyline points={pts} fill="none" stroke="var(--accent)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
     </svg>
