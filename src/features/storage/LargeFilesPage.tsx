@@ -1,15 +1,19 @@
 import { useMemo, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { FileSearch, FolderOpen, Search } from "lucide-react";
+import { ChevronLeft, Copy, FileSearch, FolderOpen, Hourglass, Image as ImageIcon, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/ipc";
 import { useJob, useJobs } from "../../stores/jobs";
+import { useNav } from "../../stores/nav";
+import { ModuleStage } from "../../components/ModuleStage";
+import { BentoButton, BentoIcon, ResultsBento } from "../../components/ResultsBento";
+import clutterHero from "../../assets/icons/minha-bagunca-hd.webp";
 import { Button, EmptyState, ErrorNote, PageHeader } from "../../components/ui";
 import { FileTable, useSelection } from "../../components/FileTable";
 import { ReviewDialog, SelectionBar } from "../../components/ReviewDialog";
 import { ScanProgressCard, WarningsNote, useHome } from "../scanner/ScannerPage";
 import { formatBytes, formatCount, shortPath } from "../../lib/format";
-import type { FileCategory, FileFilter, FindResult } from "../../types";
+import type { DuplicatesResult, FileCategory, FileFilter, FindResult, SimilarResult } from "../../types";
 
 const MODULE = "largeFiles";
 
@@ -53,7 +57,7 @@ function Chips<T>({ options, value, onChange }: { options: { label: string; valu
   );
 }
 
-export function LargeFilesPage() {
+function LargeFilesDetails({ onBack }: { onBack: () => void }) {
   const home = useHome();
   const job = useJob<FindResult>(MODULE);
   const start = useJobs((s) => s.start);
@@ -106,6 +110,11 @@ export function LargeFilesPage() {
       <PageHeader
         title="Arquivos grandes e antigos"
         subtitle="Encontre os arquivos que mais ocupam espaço e os que você não abre há muito tempo. Arquivos dentro de apps e bibliotecas (Fotos, Música) não são listados separadamente."
+        actions={
+          <Button variant="ghost" icon={<ChevronLeft className="size-3.5" />} onClick={onBack}>
+            Voltar aos resultados
+          </Button>
+        }
       />
       <div className="px-8 pb-2">
         <div className="space-y-3 rounded-xl glass p-4">
@@ -182,5 +191,128 @@ export function LargeFilesPage() {
         />
       )}
     </div>
+  );
+}
+
+const DEFAULT_FILTER: FileFilter = { minSize: 500e6, olderThanDays: null, dateField: "modified", extensions: [], categories: [], excludeLibrary: true, includeHidden: false };
+const YEAR_MS = 365 * 86_400_000;
+
+// Intro, scan and results for the whole module. Analisar runs the three analyses with their usual
+// defaults (home folder, files over 500 MB, duplicates, ~/Pictures); each tile opens the page with
+// the filters to refine it.
+export function LargeFilesPage() {
+  const home = useHome();
+  const go = useNav((s) => s.go);
+  const { start, cancel, reset } = useJobs();
+  const large = useJob<FindResult>(MODULE);
+  const dups = useJob<DuplicatesResult>("duplicates");
+  const images = useJob<SimilarResult>("similarImages");
+  const [details, setDetails] = useState(false);
+
+  const all = [large, dups, images];
+  const phase = all.some((j) => j.status === "running") ? "scanning" : large.status === "done" || large.status === "failed" ? "results" : "intro";
+  const scan = () => {
+    if (!home) return;
+    start(MODULE, "start_find_files", { root: home, filter: DEFAULT_FILTER });
+    start("duplicates", "start_duplicate_scan", { root: home, minSize: 1e6 });
+    start("similarImages", "start_similar_images", { root: `${home}/Pictures`, sensitivity: "normal" });
+  };
+  const modules = [MODULE, "duplicates", "similarImages"];
+
+  const files = large.result?.matches ?? [];
+  const old = files.filter((f) => (f.modifiedAt ?? Date.now()) < Date.now() - YEAR_MS);
+  const oldBytes = old.reduce((s, f) => s + f.sizeLogical, 0);
+  const copies = dups.result?.totalGroups ?? 0;
+  const similar = images.result?.groups.length ?? 0;
+  const reading = all.find((j) => j.status === "running" && j.progress?.current)?.progress?.current;
+
+  return (
+    <ModuleStage
+      phase={phase}
+      title="Minha bagunça"
+      hero={clutterHero}
+      intro="Encontre arquivos grandes, antigos, cópias idênticas e imagens parecidas na sua pasta pessoal. Nada é removido sem a sua confirmação."
+      scanning="Cavando fundo…"
+      detail={reading ? shortPath(reading, home) : "Lendo a pasta pessoal"}
+      onScan={scan}
+      onStop={() => modules.forEach((m) => cancel(m))}
+      onBack={() => {
+        setDetails(false);
+        modules.forEach((m) => reset(m));
+      }}
+    >
+      {details ? (
+        <LargeFilesDetails onBack={() => setDetails(false)} />
+      ) : (
+        <>
+          {large.status === "failed" && (
+            <div className="px-8">
+              <ErrorNote>{large.error}</ErrorNote>
+            </div>
+          )}
+          <ResultsBento
+            headline={large.result ? `${formatBytes(large.result.matchedBytes)} em arquivos grandes.` : "Resultados da análise"}
+            pill={<BentoButton onClick={() => setDetails(true)}>Refinar a busca</BentoButton>}
+            extra={<BentoButton onClick={scan}>Analisar de novo</BentoButton>}
+            tiles={[
+              {
+                id: "large",
+                title: `${formatCount(large.result?.matched ?? 0)} arquivos acima de 500 MB`,
+                description: "Os que mais ocupam espaço na sua pasta pessoal.",
+                visual: <BentoIcon size={112}><FileSearch /></BentoIcon>,
+                body: (
+                  <ul className="space-y-1 text-[12.5px]">
+                    {files.slice(0, 3).map((f) => (
+                      <li key={f.path} className="flex justify-between gap-3">
+                        <span className="truncate text-ink-2">{f.name}</span>
+                        <span className="tabular shrink-0">{formatBytes(f.sizeLogical)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+                actions: (
+                  <BentoButton primary onClick={() => setDetails(true)}>
+                    Revisar
+                  </BentoButton>
+                ),
+              },
+              {
+                id: "duplicates",
+                title: `${formatCount(copies)} ${copies === 1 ? "grupo de cópias idênticas" : "grupos de cópias idênticas"}`,
+                description: copies ? `Guardar uma só cópia de cada libera ${formatBytes(dups.result?.wastedBytes ?? 0)}.` : "Nenhuma cópia encontrada.",
+                visual: <BentoIcon size={56}><Copy /></BentoIcon>,
+                actions: (
+                  <BentoButton primary disabled={!copies} onClick={() => go("duplicates")}>
+                    Revisar
+                  </BentoButton>
+                ),
+              },
+              {
+                id: "old",
+                title: `${formatCount(old.length)} ${old.length === 1 ? "arquivo grande parado" : "arquivos grandes parados"} há mais de 1 ano`,
+                description: old.length ? `Ocupam ${formatBytes(oldBytes)}. A data é a da última modificação.` : "Nenhum arquivo grande está parado há tanto tempo.",
+                visual: <BentoIcon size={48}><Hourglass /></BentoIcon>,
+                actions: (
+                  <BentoButton primary disabled={!old.length} onClick={() => setDetails(true)}>
+                    Revisar
+                  </BentoButton>
+                ),
+              },
+              {
+                id: "images",
+                title: `${formatCount(similar)} ${similar === 1 ? "grupo de imagens parecidas" : "grupos de imagens parecidas"}`,
+                description: similar ? `Podem liberar ${formatBytes(images.result?.reclaimable ?? 0)} em ~/Pictures.` : "Nenhuma imagem parecida em ~/Pictures.",
+                visual: <BentoIcon size={48}><ImageIcon /></BentoIcon>,
+                actions: (
+                  <BentoButton primary disabled={!similar} onClick={() => go("similarImages")}>
+                    Revisar
+                  </BentoButton>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
+    </ModuleStage>
   );
 }
